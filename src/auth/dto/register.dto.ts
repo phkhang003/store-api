@@ -1,8 +1,7 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength, IsOptional, IsEnum } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { UserRole } from '../schemas/user.schema';
+import { IsEmail, IsString, MinLength } from 'class-validator';
 
-export class CreateUserDto {
+export class RegisterDto {
   @ApiProperty({
     description: 'Tên người dùng',
     example: 'John Doe',
@@ -11,13 +10,12 @@ export class CreateUserDto {
     format: 'text',
     title: 'Tên',
   })
-  @IsNotEmpty()
   @IsString()
   name: string;
 
   @ApiProperty({
     description: 'Email đăng nhập',
-    example: 'john@example.com',
+    example: 'john@example.com', 
     required: true,
     type: 'string',
     format: 'email',
@@ -38,17 +36,4 @@ export class CreateUserDto {
   @IsString()
   @MinLength(6)
   password: string;
-
-  @ApiProperty({
-    description: 'Vai trò người dùng',
-    enum: UserRole,
-    default: UserRole.USER,
-    required: false,
-    type: 'string',
-    enumName: 'UserRole',
-    title: 'Vai trò',
-  })
-  @IsOptional()
-  @IsEnum(UserRole)
-  role?: UserRole;
-} 
+}
