@@ -1,25 +1,22 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UsersModule } from './users/users.module';
-import { validateEnvConfig } from './config/env.validation';
 import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true,
-      envFilePath: '.env',
-      validate: validateEnvConfig,
+      isGlobal: true // Làm cho ConfigModule có thể truy cập từ mọi nơi
     }),
-    MongooseModule.forRootAsync({
-      useFactory: (configService: ConfigService) => ({
-        uri: configService.get<string>('MONGODB_URI'),
-      }),
-      inject: [ConfigService],
+    MongooseModule.forRoot(process.env.MONGODB_URI, {
+      retryWrites: true,
+      w: 'majority'
     }),
-    AuthModule,
     UsersModule,
+    AuthModule,
   ],
+  controllers: [],
+  providers: [],
 })
 export class AppModule {}

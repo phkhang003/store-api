@@ -63,11 +63,16 @@ async function bootstrap() {
   SwaggerModule.setup('api', app, document);
 
   const port = process.env.PORT || 3000;
+  const isDev = process.env.NODE_ENV !== 'production';
+  const baseUrl = isDev 
+    ? `http://localhost:${port}`
+    : 'https://store-api-iota-five.vercel.app';
+
   await app.listen(port, '0.0.0.0', () => {
     console.log('');
     console.log('🚀 API đang chạy tại:');
-    console.log(`📝 Swagger UI: https://store-api-iota-five.vercel.app/api`);
-    console.log(`🌐 API endpoint: https://store-api-iota-five.vercel.app`);
+    console.log(`📝 Swagger UI: ${baseUrl}/api`);
+    console.log(`🌐 API endpoint: ${baseUrl}`);
     console.log('');
   });
 }
