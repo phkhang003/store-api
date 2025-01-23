@@ -59,7 +59,7 @@ async function bootstrap() {
     .build();
     
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document, {
+  SwaggerModule.setup('', app, document, {
     customSiteTitle: 'Store API Documentation',
     customfavIcon: 'https://avatars1.githubusercontent.com/u/30929853',
     customJs: [
