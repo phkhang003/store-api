@@ -8,6 +8,9 @@ import { rateLimit } from 'express-rate-limit';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
+  // Enable trust proxy
+  app.getHttpAdapter().getInstance().set('trust proxy', true);
+  
   // Enable CORS
   app.enableCors({
     origin: true,
@@ -58,7 +61,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document, {
     customSiteTitle: 'Store API Documentation',
-    customfavIcon: 'https://avatars1.githubusercontent.com/u/30929853',
+    customfavIcon: '/favicon.ico',
     customJs: [
       'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.min.js',
     ],
