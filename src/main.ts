@@ -39,8 +39,6 @@ async function bootstrap() {
   
   app.useGlobalPipes(new ValidationPipe());
 
-  app.setGlobalPrefix('api/v1');
-
   const config = new DocumentBuilder()
     .setTitle('Store API')
     .setDescription('API documentation for Store')
