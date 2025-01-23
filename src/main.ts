@@ -12,20 +12,24 @@ async function bootstrap() {
   app.use(helmet());
   app.use(
     rateLimit({
-      windowMs: 15 * 60 * 1000, // 15 phút
-      max: 100, // Giới hạn 100 request mỗi IP trong 15 phút
+      windowMs: 15 * 60 * 1000,
+      max: 100,
       message: 'Quá nhiều request từ IP này, vui lòng thử lại sau 15 phút'
     })
   );
   
-  // Cấu hình CORS chi tiết
+  // Cấu hình CORS cho Vercel
   app.enableCors({
-    origin: ['http://localhost:3000'],
+    origin: [
+      'https://foxpc-backend.vercel.app',
+      'https://foxpc-store.vercel.app',
+      'https://localhost:3000',
+      'http://localhost:3000'
+    ],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
   });
   
-  // Thêm validation pipe
   app.useGlobalPipes(new ValidationPipe());
 
   const config = new DocumentBuilder()
@@ -57,4 +61,5 @@ async function bootstrap() {
     console.log('');
   });
 }
+
 bootstrap();
