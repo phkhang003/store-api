@@ -27,9 +27,6 @@ async function bootstrap() {
   // Cấu hình CORS
   app.enableCors({
     origin: [
-      'https://store-api-iota-five.vercel.app',
-      'https://store-api-git-master-phkhang003s-projects.vercel.app',
-      'https://store-p4ojrsrq2-phkhang003s-projects.vercel.app',
       'https://foxpc-backend.vercel.app',
       'https://foxpc-store.vercel.app',
       'http://localhost:3000',
