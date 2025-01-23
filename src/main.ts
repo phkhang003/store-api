@@ -66,7 +66,7 @@ async function bootstrap() {
   const isDev = process.env.NODE_ENV !== 'production';
   const baseUrl = isDev 
     ? `http://localhost:${port}`
-    : 'https://store-api-iota-five.vercel.app';
+    : 'https://foxpc-backend.vercel.app';
 
   await app.listen(port, '0.0.0.0', () => {
     console.log('');
