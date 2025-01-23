@@ -9,7 +9,13 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
   // Security middleware
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginEmbedderPolicy: false,
+      crossOriginResourcePolicy: false,
+    })
+  );
   app.use(
     rateLimit({
       windowMs: 15 * 60 * 1000,
@@ -18,13 +24,16 @@ async function bootstrap() {
     })
   );
   
-  // Cấu hình CORS cho Vercel
+  // Cấu hình CORS
   app.enableCors({
     origin: [
+      'https://store-api-iota-five.vercel.app',
+      'https://store-api-git-master-phkhang003s-projects.vercel.app',
+      'https://store-p4ojrsrq2-phkhang003s-projects.vercel.app',
       'https://foxpc-backend.vercel.app',
       'https://foxpc-store.vercel.app',
-      'https://localhost:3000',
-      'http://localhost:3000'
+      'http://localhost:3000',
+      'http://localhost:5173'
     ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -54,11 +63,11 @@ async function bootstrap() {
   SwaggerModule.setup('api', app, document);
 
   const port = process.env.PORT || 3000;
-  await app.listen(port, () => {
+  await app.listen(port, '0.0.0.0', () => {
     console.log('');
     console.log('🚀 API đang chạy tại:');
-    console.log(`📝 Swagger UI: http://localhost:${port}/api`);
-    console.log(`🌐 API endpoint: http://localhost:${port}`);
+    console.log(`📝 Swagger UI: https://store-api-iota-five.vercel.app/api`);
+    console.log(`🌐 API endpoint: https://store-api-iota-five.vercel.app`);
     console.log('');
   });
 }
