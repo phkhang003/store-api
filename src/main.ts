@@ -43,6 +43,8 @@ async function bootstrap() {
     .setTitle('Store API')
     .setDescription('API documentation for Store')
     .setVersion('1.0')
+    .addServer('https://foxpc-backend.vercel.app', 'Production')
+    .addServer('http://localhost:3000', 'Development')
     .addBearerAuth(
       {
         type: 'http',
