@@ -39,6 +39,9 @@ async function bootstrap() {
   
   app.useGlobalPipes(new ValidationPipe());
 
+  // Thêm global prefix
+  app.setGlobalPrefix('api');
+
   const config = new DocumentBuilder()
     .setTitle('Store API')
     .setDescription('API documentation for Store')
@@ -59,7 +62,7 @@ async function bootstrap() {
     .build();
     
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('', app, document, {
+  SwaggerModule.setup('api', app, document, {
     customSiteTitle: 'Store API Documentation',
     customfavIcon: 'https://avatars1.githubusercontent.com/u/30929853',
     customJs: [
