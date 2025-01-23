@@ -8,6 +8,13 @@ import { rateLimit } from 'express-rate-limit';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
+  // Enable CORS
+  app.enableCors({
+    origin: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
+  
   // Security middleware
   app.use(
     helmet({
@@ -23,19 +30,6 @@ async function bootstrap() {
       message: 'Quá nhiều request từ IP này, vui lòng thử lại sau 15 phút'
     })
   );
-  
-  // Cấu hình CORS
-  app.enableCors({
-    origin: [
-      'https://foxpc-backend.vercel.app',
-      'https://foxpc-store.vercel.app',
-      'http://localhost:3000',
-      'http://localhost:5173'
-    ],
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
-  });
   
   app.useGlobalPipes(new ValidationPipe());
 
