@@ -8,7 +8,7 @@ async function bootstrap() {
   
   // Enable CORS
   app.enableCors({
-    origin: true,
+    origin: '*',
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
     credentials: true,
@@ -29,7 +29,9 @@ async function bootstrap() {
     .build();
     
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('', app, document); // Đổi route swagger về root
+  
+  // Thay đổi route swagger thành root path
+  SwaggerModule.setup('', app, document);
 
   const port = process.env.PORT || 3000;
   const isDev = process.env.NODE_ENV !== 'production';
