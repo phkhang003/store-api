@@ -11,7 +11,19 @@ import { AuthModule } from './auth/auth.module';
     }),
     MongooseModule.forRoot(process.env.MONGODB_URI, {
       retryWrites: true,
-      w: 'majority'
+      w: 'majority',
+      connectionFactory: (connection) => {
+        connection.on('connected', () => {
+          console.log('');
+          console.log('🗄️ MongoDB connected successfully');
+          console.log('📊 Database:', connection.db.databaseName);
+          console.log('');
+        });
+        connection.on('error', (error) => {
+          console.error('❌ MongoDB connection error:', error);
+        });
+        return connection;
+      }
     }),
     UsersModule,
     AuthModule,

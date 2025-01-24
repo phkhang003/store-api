@@ -8,12 +8,9 @@ import { rateLimit } from 'express-rate-limit';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
-  // Enable trust proxy
-  app.getHttpAdapter().getInstance().set('trust proxy', true);
-  
   // Enable CORS
   app.enableCors({
-    origin: true,
+    origin: ['https://foxpc-backend.vercel.app', 'http://localhost:3000'],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
@@ -28,16 +25,19 @@ async function bootstrap() {
   );
   app.use(
     rateLimit({
-      windowMs: 15 * 60 * 1000,
-      max: 100,
-      message: 'Quá nhiều request từ IP này, vui lòng thử lại sau 15 phút'
+      windowMs: 15 * 60 * 1000, // 15 phút
+      max: 100, // Giới hạn 100 request mỗi IP
+      message: 'Quá nhiều request từ IP này, vui lòng thử lại sau 15 phút',
+      standardHeaders: true,
+      legacyHeaders: false,
+      skipSuccessfulRequests: false,
+      keyGenerator: (req) => {
+        return req.ip || req.connection.remoteAddress;
+      },
     })
   );
   
   app.useGlobalPipes(new ValidationPipe());
-
-  // Thêm global prefix
-  app.setGlobalPrefix('api');
 
   const config = new DocumentBuilder()
     .setTitle('Store API')
@@ -45,31 +45,17 @@ async function bootstrap() {
     .setVersion('1.0')
     .addServer('https://foxpc-backend.vercel.app', 'Production')
     .addServer('http://localhost:3000', 'Development')
-    .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        name: 'JWT',
-        description: 'Enter JWT token',
-        in: 'header',
-      },
-      'access-token'
-    )
+    .addBearerAuth()
     .build();
     
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document, {
     customSiteTitle: 'Store API Documentation',
     customfavIcon: '/favicon.ico',
-    customJs: [
-      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.min.js',
-    ],
-    customCssUrl: [
-      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css',
-    ],
     swaggerOptions: {
       persistAuthorization: true,
+      displayRequestDuration: true,
+      docExpansion: 'none',
     },
   });
 
