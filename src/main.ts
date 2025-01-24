@@ -2,62 +2,34 @@ import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
-import helmet from 'helmet';
-import { rateLimit } from 'express-rate-limit';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
   // Enable CORS
   app.enableCors({
-    origin: ['https://foxpc-backend.vercel.app', 'http://localhost:3000'],
+    origin: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
     credentials: true,
   });
   
-  // Security middleware
-  app.use(
-    helmet({
-      contentSecurityPolicy: false,
-      crossOriginEmbedderPolicy: false,
-      crossOriginResourcePolicy: false,
-    })
-  );
-  app.use(
-    rateLimit({
-      windowMs: 15 * 60 * 1000, // 15 phút
-      max: 100, // Giới hạn 100 request mỗi IP
-      message: 'Quá nhiều request từ IP này, vui lòng thử lại sau 15 phút',
-      standardHeaders: true,
-      legacyHeaders: false,
-      skipSuccessfulRequests: false,
-      keyGenerator: (req) => {
-        return req.ip || req.connection.remoteAddress;
-      },
-    })
-  );
+  // Bỏ helmet và rate limit tạm thời để debug
   
-  app.useGlobalPipes(new ValidationPipe());
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,
+    transform: true,
+  }));
 
   const config = new DocumentBuilder()
     .setTitle('Store API')
     .setDescription('API documentation for Store')
     .setVersion('1.0')
-    .addServer('https://foxpc-backend.vercel.app', 'Production')
-    .addServer('http://localhost:3000', 'Development')
     .addBearerAuth()
     .build();
     
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document, {
-    customSiteTitle: 'Store API Documentation',
-    customfavIcon: '/favicon.ico',
-    swaggerOptions: {
-      persistAuthorization: true,
-      displayRequestDuration: true,
-      docExpansion: 'none',
-    },
-  });
+  SwaggerModule.setup('', app, document); // Đổi route swagger về root
 
   const port = process.env.PORT || 3000;
   const isDev = process.env.NODE_ENV !== 'production';

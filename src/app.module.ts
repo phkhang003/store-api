@@ -14,13 +14,16 @@ import { AuthModule } from './auth/auth.module';
       w: 'majority',
       connectionFactory: (connection) => {
         connection.on('connected', () => {
-          console.log('');
-          console.log('🗄️ MongoDB connected successfully');
-          console.log('📊 Database:', connection.db.databaseName);
-          console.log('');
+          console.log('MongoDB connected successfully');
+          console.log('Database:', connection.db.databaseName);
+          console.log('Connection string:', process.env.MONGODB_URI);
         });
         connection.on('error', (error) => {
-          console.error('❌ MongoDB connection error:', error);
+          console.error('MongoDB connection error:', error);
+          console.error('Connection string:', process.env.MONGODB_URI);
+        });
+        connection.on('disconnected', () => {
+          console.log('MongoDB disconnected');
         });
         return connection;
       }
