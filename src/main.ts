@@ -2,9 +2,14 @@ import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import * as express from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  
+  // Enable trust proxy
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.enable('trust proxy');
   
   // Enable CORS
   app.enableCors({
@@ -31,7 +36,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   
   // Thay đổi route swagger thành root path
-  SwaggerModule.setup('', app, document);
+  SwaggerModule.setup('api', app, document);
 
   const port = process.env.PORT || 3000;
   const isDev = process.env.NODE_ENV !== 'production';
