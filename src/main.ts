@@ -6,6 +6,7 @@ import * as express from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.setGlobalPrefix('api');
   
   // Add express json middleware
   const expressApp = app.getHttpAdapter().getInstance();
