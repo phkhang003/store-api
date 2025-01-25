@@ -33,6 +33,7 @@ async function bootstrap() {
     .setDescription('API documentation for Store')
     .setVersion('1.0')
     .addBearerAuth()
+    .addServer('/api')
     .build();
     
   const document = SwaggerModule.createDocument(app, config);
