@@ -47,7 +47,7 @@ async function bootstrap() {
   await app.listen(port, '0.0.0.0', () => {
     console.log('');
     console.log('🚀 API đang chạy tại:');
-    console.log(`📝 Swagger UI: ${baseUrl}/api`);
+    console.log(`📝 Swagger UI: ${baseUrl}/api/swagger`);
     console.log(`🌐 API endpoint: ${baseUrl}`);
     console.log('');
   });
