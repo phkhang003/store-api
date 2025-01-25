@@ -7,13 +7,14 @@ import * as express from 'express';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
-  // Enable trust proxy
+  // Add express json middleware
   const expressApp = app.getHttpAdapter().getInstance();
-  expressApp.enable('trust proxy');
+  expressApp.use(express.json());
+  expressApp.use(express.urlencoded({ extended: true }));
   
   // Enable CORS
   app.enableCors({
-    origin: '*',
+    origin: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
     credentials: true,
