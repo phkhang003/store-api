@@ -34,24 +34,8 @@ async function bootstrap() {
     .addBearerAuth()
     .build();
     
-  const document = SwaggerModule.createDocument(app, config, {
-    operationIdFactory: (
-      controllerKey: string,
-      methodKey: string
-    ) => methodKey
-  });
-  
-  SwaggerModule.setup('api', app, document, {
-    customSiteTitle: 'Store API Documentation',
-    customfavIcon: '/favicon.ico',
-    customJs: [
-      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.min.js',
-      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-standalone-preset.min.js',
-    ],
-    customCssUrl: [
-      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css',
-    ]
-  });
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
 
   const port = process.env.PORT || 3000;
   const isDev = process.env.NODE_ENV !== 'production';
