@@ -5,7 +5,11 @@ import { ValidationPipe } from '@nestjs/common';
 import * as express from 'express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { cors: true });
+  
+  // Add express json middleware trước
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
   
   // Thêm route mặc định
   const router = app.getHttpAdapter();
@@ -14,45 +18,29 @@ async function bootstrap() {
   });
   
   app.setGlobalPrefix('api');
-  
-  // Enable CORS với cấu hình cụ thể hơn
-  app.enableCors({
-    origin: ['http://localhost:3000', 'https://foxpc-backend.vercel.app'],
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
-    credentials: true,
-  });
 
+  // Cấu hình swagger
   const config = new DocumentBuilder()
     .setTitle('Store API')
     .setDescription('API documentation for Store')
     .setVersion('1.0')
     .addBearerAuth()
-    .addServer('https://foxpc-backend.vercel.app')
-    .addServer('http://localhost:3000')
     .build();
     
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/swagger', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
+      tryItOutEnabled: true,
+      displayRequestDuration: true,
+      filter: true
     },
+    customCss: '.swagger-ui .topbar { display: none }',
     customSiteTitle: 'Store API Documentation'
   });
 
   const port = process.env.PORT || 3000;
-  const isDev = process.env.NODE_ENV !== 'production';
-  const baseUrl = isDev 
-    ? `http://localhost:${port}`
-    : 'https://foxpc-backend.vercel.app';
-
-  await app.listen(port, '0.0.0.0', () => {
-    console.log('');
-    console.log('🚀 API đang chạy tại:');
-    console.log(`📝 Swagger UI: ${baseUrl}/api/swagger`);
-    console.log(`🌐 API endpoint: ${baseUrl}`);
-    console.log('');
-  });
+  await app.listen(port, '0.0.0.0');
 }
 
 bootstrap();
