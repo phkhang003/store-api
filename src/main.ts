@@ -7,8 +7,9 @@ import * as express from 'express';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
-  // Thêm route mặc định
-  app.getHttpAdapter().get('/', (req, res) => {
+  // Thêm route mặc định trước khi set global prefix
+  const router = app.getHttpAdapter();
+  router.get('/', (req, res) => {
     res.redirect('/api/swagger');
   });
   
