@@ -6,6 +6,12 @@ import * as express from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  
+  // Thêm route mặc định
+  app.getHttpAdapter().get('/', (req, res) => {
+    res.redirect('/api/swagger');
+  });
+  
   app.setGlobalPrefix('api');
   
   // Add express json middleware
