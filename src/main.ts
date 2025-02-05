@@ -1,25 +1,26 @@
 import { NestFactory } from '@nestjs/core';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
-import * as express from 'express';
+import { ValidationPipe, Logger } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { cors: true });
-  
-  // Add express json middleware trước
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
-  
-  // Thêm route mặc định
-  const router = app.getHttpAdapter();
-  router.get('/', (req, res) => {
-    res.redirect('/api/swagger');
-  });
+  const logger = new Logger('Bootstrap');
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   
   app.setGlobalPrefix('api');
+  app.enableCors({
+    origin: '*',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: ['Content-Type', 'Accept', 'Authorization'],
+    credentials: true
+  });
+  
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,
+    transform: true,
+  }));
 
-  // Cấu hình swagger
   const config = new DocumentBuilder()
     .setTitle('Store API')
     .setDescription('API documentation for Store')
@@ -28,19 +29,16 @@ async function bootstrap() {
     .build();
     
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/swagger', app, document, {
-    swaggerOptions: {
-      persistAuthorization: true,
-      tryItOutEnabled: true,
-      displayRequestDuration: true,
-      filter: true
-    },
-    customCss: '.swagger-ui .topbar { display: none }',
-    customSiteTitle: 'Store API Documentation'
-  });
+  SwaggerModule.setup('api/swagger', app, document);
 
   const port = process.env.PORT || 3000;
-  await app.listen(port, '0.0.0.0');
+  await app.listen(port, '0.0.0.0', () => {
+    logger.log(`Application is running on: http://localhost:${port}`);
+    logger.log(`Swagger UI available at: http://localhost:${port}/api/swagger`);
+  });
 }
 
-bootstrap();
+bootstrap().catch(err => {
+  console.error('Error starting server:', err);
+  process.exit(1);
+});

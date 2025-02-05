@@ -8,12 +8,21 @@
     ],
     "routes": [
       {
+        "src": "/api/swagger/(.*)",
+        "dest": "src/main.ts"
+      },
+      {
+        "src": "/api/(.*)",
+        "dest": "src/main.ts"
+      },
+      {
         "src": "/(.*)",
         "dest": "src/main.ts",
         "headers": {
           "Access-Control-Allow-Origin": "*",
           "Access-Control-Allow-Methods": "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
-          "Access-Control-Allow-Headers": "X-Requested-With, X-HTTP-Method-Override, Content-Type, Accept, Observe, Authorization"
+          "Access-Control-Allow-Headers": "X-Requested-With, X-HTTP-Method-Override, Content-Type, Accept, Observe, Authorization",
+          "Access-Control-Allow-Credentials": "true"
         }
       }
     ],
