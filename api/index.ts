@@ -38,8 +38,8 @@ async function bootstrap() {
   return app;
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: any, res: any) {
   const app = await bootstrap();
   const instance = app.getHttpAdapter().getInstance();
-  return instance(req, res);
+  await instance(req, res);
 } 
