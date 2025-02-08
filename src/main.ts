@@ -3,10 +3,12 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { ConfigService } from '@nestjs/config';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const configService = app.get(ConfigService);
   
   app.setGlobalPrefix('api');
   app.enableCors({
@@ -31,10 +33,12 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/swagger', app, document);
 
-  const port = process.env.PORT || 3000;
+  const port = configService.get<number>('PORT', 3000);
+  const apiBaseUrl = configService.get<string>('API_BASE_URL', 'http://localhost');
+  
   await app.listen(port, '0.0.0.0', () => {
-    logger.log(`Application is running on: http://localhost:${port}`);
-    logger.log(`Swagger UI available at: http://localhost:${port}/api/swagger`);
+    logger.log(`Application is running on: ${apiBaseUrl}:${port}`);
+    logger.log(`Swagger UI available at: ${apiBaseUrl}:${port}/api/swagger`);
   });
 }
 
