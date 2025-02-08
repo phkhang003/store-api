@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../src/app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 let app;
 
@@ -14,7 +15,16 @@ async function bootstrap() {
     });
     app.useGlobalPipes(new ValidationPipe());
     
-    // Thêm route chuyển hướng
+    const config = new DocumentBuilder()
+      .setTitle('Store API')
+      .setDescription('API documentation for Store')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+      
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/swagger', app, document);
+
     app.getHttpAdapter().get('/', (req: Request, res: Response) => {
       res.redirect(301, '/api/swagger');
     });
