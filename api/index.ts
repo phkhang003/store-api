@@ -38,8 +38,17 @@ async function bootstrap() {
   return app;
 }
 
+// Thêm handler function cho Vercel
 export default async function handler(req: any, res: any) {
-  const app = await bootstrap();
-  const instance = app.getHttpAdapter().getInstance();
-  await instance(req, res);
+  try {
+    const app = await bootstrap();
+    const instance = app.getHttpAdapter().getInstance();
+    return instance(req, res);
+  } catch (error) {
+    console.error('Error in handler:', error);
+    res.status(500).json({ 
+      error: 'Internal Server Error',
+      message: error.message 
+    });
+  }
 } 
