@@ -3,6 +3,7 @@ import { AppModule } from '../src/app.module';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 let app;
 const logger = new Logger('API');
@@ -14,7 +15,7 @@ async function bootstrap() {
       logger.log('MongoDB URI:', process.env.MONGODB_URI ? 'Đã cấu hình' : 'Chưa cấu hình');
       logger.log('JWT Secret:', process.env.JWT_SECRET ? 'Đã cấu hình' : 'Chưa cấu hình');
       
-      app = await NestFactory.create(AppModule, {
+      app = await NestFactory.create<NestExpressApplication>(AppModule, {
         logger: ['error', 'warn', 'log', 'debug', 'verbose'],
       });
       
@@ -37,6 +38,20 @@ async function bootstrap() {
         .build();
         
       const document = SwaggerModule.createDocument(app, config);
+      
+      // Serve Swagger UI static files
+      app.use('/api/swagger/swagger-ui.css', (req: Request, res: Response) => {
+        res.sendFile(require.resolve('swagger-ui-dist/swagger-ui.css'));
+      });
+      
+      app.use('/api/swagger/swagger-ui-bundle.js', (req: Request, res: Response) => {
+        res.sendFile(require.resolve('swagger-ui-dist/swagger-ui-bundle.js'));
+      });
+      
+      app.use('/api/swagger/swagger-ui-standalone-preset.js', (req: Request, res: Response) => {
+        res.sendFile(require.resolve('swagger-ui-dist/swagger-ui-standalone-preset.js'));
+      });
+
       SwaggerModule.setup('api/swagger', app, document);
 
       app.getHttpAdapter().get('/hello', (req: Request, res: Response) => {
