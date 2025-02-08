@@ -12,15 +12,16 @@ import { AuthModule } from './auth/auth.module';
     MongooseModule.forRoot(process.env.MONGODB_URI, {
       retryWrites: true,
       w: 'majority',
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 10000,
+      retryAttempts: 3,
       connectionFactory: (connection) => {
         connection.on('connected', () => {
           console.log('MongoDB connected successfully');
-          console.log('Database:', connection.db.databaseName);
-          console.log('Connection string:', process.env.MONGODB_URI);
+          console.log('Database:', connection.name);
         });
         connection.on('error', (error) => {
           console.error('MongoDB connection error:', error);
-          console.error('Connection string:', process.env.MONGODB_URI);
         });
         connection.on('disconnected', () => {
           console.log('MongoDB disconnected');

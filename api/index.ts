@@ -60,7 +60,7 @@ export default async function handler(req: any, res: any) {
     const app = await Promise.race([
       bootstrap(),
       new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Bootstrap timeout')), 15000)
+        setTimeout(() => reject(new Error('Bootstrap timeout')), 30000)
       )
     ]);
     
