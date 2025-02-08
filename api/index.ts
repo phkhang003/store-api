@@ -25,6 +25,10 @@ async function bootstrap() {
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api/swagger', app, document);
 
+    app.getHttpAdapter().get('/hello', (req: Request, res: Response) => {
+      res.json({ message: 'Xin chào từ NestJS API!' });
+    });
+
     app.getHttpAdapter().get('/', (req: Request, res: Response) => {
       res.redirect(301, '/api/swagger');
     });
