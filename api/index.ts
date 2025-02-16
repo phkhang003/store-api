@@ -4,6 +4,8 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
+import * as express from 'express';
 
 let app;
 const logger = new Logger('API');
@@ -27,32 +29,51 @@ async function bootstrap() {
         exclude: ['/'],
       });
       
+      // Serve static files
+      app.use('/public', express.static(join(__dirname, '..', 'public')));
+      
       app.useGlobalPipes(new ValidationPipe());
       
       logger.log('Cấu hình Swagger...');
       const config = new DocumentBuilder()
         .setTitle('Store API')
-        .setDescription('API documentation for Store')
+        .setDescription('API documentation for Store Management System')
         .setVersion('1.0')
         .addBearerAuth()
+        .addApiKey({
+          type: 'apiKey',
+          name: 'x-api-key',
+          in: 'header',
+          description: 'API key for external access'
+        }, 'x-api-key')
         .build();
         
       const document = SwaggerModule.createDocument(app, config);
       
-      // Serve Swagger UI static files
-      app.use('/api/swagger/swagger-ui.css', (req: Request, res: Response) => {
-        res.sendFile(require.resolve('swagger-ui-dist/swagger-ui.css'));
+      SwaggerModule.setup('api', app, document, {
+        customfavIcon: '/public/favicon.ico',
+        customSiteTitle: 'Store API Documentation',
+        customCss: `
+          .swagger-ui .topbar { display: none }
+          .swagger-ui .info .title { 
+            color: #2c3e50;
+            font-size: 36px;
+          }
+          .swagger-ui .info { 
+            margin: 30px 0;
+          }
+          .swagger-ui .scheme-container {
+            background: #f8f9fa;
+            box-shadow: none;
+          }
+        `,
+        swaggerOptions: {
+          persistAuthorization: true,
+          docExpansion: 'none',
+          filter: true,
+          showRequestDuration: true
+        }
       });
-      
-      app.use('/api/swagger/swagger-ui-bundle.js', (req: Request, res: Response) => {
-        res.sendFile(require.resolve('swagger-ui-dist/swagger-ui-bundle.js'));
-      });
-      
-      app.use('/api/swagger/swagger-ui-standalone-preset.js', (req: Request, res: Response) => {
-        res.sendFile(require.resolve('swagger-ui-dist/swagger-ui-standalone-preset.js'));
-      });
-
-      SwaggerModule.setup('api/swagger', app, document);
 
       app.getHttpAdapter().get('/hello', (req: Request, res: Response) => {
         res.json({ message: 'Xin chào từ NestJS API!' });
