@@ -3,16 +3,17 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nes
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from './schemas/user.schema';
 import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 import { AuthService } from '../auth/auth.service';
 import { UserResponse } from './interfaces/user.interface';
+import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
+import { Permission } from '../auth/constants/permissions';
 
 @ApiTags('users')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard)
 @Controller('users')
 export class UsersController {
   constructor(
@@ -21,8 +22,8 @@ export class UsersController {
   ) {}
 
   @Get()
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Lấy danh sách users (Admin only)' })
+  @RequirePermissions(Permission.READ_USER)
+  @ApiOperation({ summary: 'Lấy danh sách users' })
   @ApiResponse({
     status: 200,
     description: 'Danh sách users',
@@ -46,6 +47,7 @@ export class UsersController {
   }
 
   @Get(':id')
+  @RequirePermissions(Permission.READ_USER)
   @ApiOperation({ summary: 'Lấy thông tin user theo id' })
   @ApiResponse({
     status: 200,
@@ -56,7 +58,15 @@ export class UsersController {
         _id: { type: 'string' },
         name: { type: 'string' },
         email: { type: 'string' },
-        role: { type: 'string', enum: ['USER', 'ADMIN'] },
+        role: { 
+          type: 'string', 
+          enum: [
+            'SUPER_ADMIN',
+            'CONTENT_ADMIN',
+            'PRODUCT_ADMIN', 
+            'USER'
+          ]
+        },
         refreshToken: { type: 'string', nullable: true },
         createdAt: { type: 'string', format: 'date-time' },
         updatedAt: { type: 'string', format: 'date-time' }
@@ -67,22 +77,43 @@ export class UsersController {
     @Param('id') id: string,
     @GetCurrentUser() currentUser: any
   ) {
-    if (currentUser.role !== UserRole.ADMIN && currentUser.sub !== id) {
-      throw new UnauthorizedException('Không có quyền truy cập');
-    }
     return this.usersService.findOne(id);
   }
 
   @Put(':id')
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Update user (Admin only)' })
+  @RequirePermissions(Permission.UPDATE_USER)
+  @ApiOperation({ summary: 'Cập nhật thông tin user' })
+  @ApiResponse({
+    status: 200,
+    description: 'Cập nhật thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        _id: { type: 'string' },
+        name: { type: 'string' },
+        email: { type: 'string' },
+        role: { 
+          type: 'string', 
+          enum: [
+            'SUPER_ADMIN',
+            'CONTENT_ADMIN',
+            'PRODUCT_ADMIN', 
+            'USER'
+          ]
+        },
+        refreshToken: { type: 'string', nullable: true },
+        createdAt: { type: 'string', format: 'date-time' },
+        updatedAt: { type: 'string', format: 'date-time' }
+      }
+    }
+  })
   async update(@Param('id') id: string, @Body() updateUserDto: CreateUserDto) {
     return this.usersService.update(id, updateUserDto);
   }
 
   @Delete(':id')
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: 'Xóa user (Admin only)' })
+  @RequirePermissions(Permission.DELETE_USER)
+  @ApiOperation({ summary: 'Xóa user' })
   @ApiResponse({
     status: 200,
     description: 'Xóa user thành công',
@@ -94,7 +125,6 @@ export class UsersController {
     }
   })
   async remove(@Param('id') id: string) {
-    // Đăng xuất user trước khi xóa
     await this.authService.logout(id);
     return this.usersService.remove(id);
   }

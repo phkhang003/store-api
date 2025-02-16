@@ -1,4 +1,5 @@
 import { UserRole } from '../schemas/user.schema';
+import { Permission } from '../../auth/constants/permissions';
 
 export interface UserResponse {
   _id: string;
@@ -8,4 +9,11 @@ export interface UserResponse {
   refreshToken?: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface IUser {
+  id: string;
+  email: string;
+  role: UserRole;
+  permissions?: Permission[];
 } 

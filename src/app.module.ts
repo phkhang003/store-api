@@ -3,6 +3,11 @@ import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { RedisThrottleStorage } from './config/redis-storage.service';
+import { APP_GUARD } from '@nestjs/core';
+import { PermissionGuard } from './auth/guards/permission.guard';
+import { ThrottlerStorage } from '@nestjs/throttler';
 
 @Module({
   imports: [
@@ -31,8 +36,22 @@ import { AuthModule } from './auth/auth.module';
     }),
     UsersModule,
     AuthModule,
+    ThrottlerModule.forRoot([{
+      ttl: 60,
+      limit: 10,
+    }]),
   ],
   controllers: [],
-  providers: [],
+  providers: [
+    RedisThrottleStorage,
+    {
+      provide: APP_GUARD,
+      useClass: PermissionGuard,
+    },
+    {
+      provide: ThrottlerStorage,
+      useClass: RedisThrottleStorage,
+    }
+  ],
 })
 export class AppModule {}

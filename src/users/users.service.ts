@@ -48,8 +48,8 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException('User không tồn tại');
     }
-    if (user.role === UserRole.ADMIN) {
-      throw new ForbiddenException('Không thể xóa tài khoản Admin');
+    if (user.role === UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException('Không thể xóa tài khoản SUPER_ADMIN');
     }
     await this.userModel.findByIdAndDelete(id);
     return { message: 'Xóa user thành công' };

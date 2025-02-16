@@ -6,6 +6,8 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { UserRole } from '../users/schemas/user.schema';
 import { UserDocument } from '../users/schemas/user.schema';
+import { CreateAdminDto } from './dto/create-admin.dto';
+import { RolePermissions } from './constants/permissions';
 
 @Injectable()
 export class AuthService {
@@ -20,11 +22,15 @@ export class AuthService {
     if (user) {
       throw new UnauthorizedException('Email đã tồn tại');
     }
+    
+    const userPermissions = RolePermissions[UserRole.USER];
     const newUser = await this.usersService.create({
       ...registerDto,
       password: hashedPassword,
-      role: UserRole.USER
+      role: UserRole.USER,
+      permissions: userPermissions
     });
+    
     const tokens = await this.generateTokens(newUser);
     await this.updateRefreshToken(newUser._id.toString(), tokens.refresh_token);
     return tokens;
@@ -48,9 +54,10 @@ export class AuthService {
 
   private async generateTokens(user: UserDocument) {
     const payload = { 
-      email: user.email, 
-      sub: user._id.toString(), 
-      role: user.role 
+      sub: user._id,
+      email: user.email,
+      role: user.role,
+      permissions: user.permissions
     };
     
     const [access_token, refresh_token] = await Promise.all([
@@ -92,17 +99,27 @@ export class AuthService {
     return tokens;
   }
 
-  async createAdminAccount(registerDto: RegisterDto) {
-    const existingAdmin = await this.usersService.findByRole(UserRole.ADMIN);
-    if (existingAdmin.length > 0) {
-      throw new UnauthorizedException('Admin account đã tồn tại');
+  async createAdminAccount(createAdminDto: CreateAdminDto) {
+    if (![UserRole.CONTENT_ADMIN, UserRole.PRODUCT_ADMIN].includes(createAdminDto.role)) {
+      throw new UnauthorizedException('Role không hợp lệ');
     }
 
-    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
+    const existingAdmin = await this.usersService.findByRole(createAdminDto.role);
+    if (existingAdmin.length > 0) {
+      throw new UnauthorizedException(`${createAdminDto.role} đã tồn tại`);
+    }
+
+    const rolePermissions = RolePermissions[createAdminDto.role];
+    if (!rolePermissions) {
+      throw new UnauthorizedException('Role không có permissions');
+    }
+
+    const hashedPassword = await bcrypt.hash(createAdminDto.password, 10);
     const user = await this.usersService.create({
-      ...registerDto,
+      ...createAdminDto,
       password: hashedPassword,
-      role: UserRole.ADMIN
+      role: createAdminDto.role,
+      permissions: rolePermissions
     });
     
     const tokens = await this.generateTokens(user);

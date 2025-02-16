@@ -1,6 +1,6 @@
-import { Controller, Post, Body, UseGuards, Get } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Get, Headers, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiBody, ApiHeader } from '@nestjs/swagger';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { GetCurrentUser } from './decorators/get-current-user.decorator';
@@ -9,6 +9,11 @@ import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { UserRole } from '../users/schemas/user.schema';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { JwtPayload } from 'jsonwebtoken';
+import { CreateAdminDto } from './dto/create-admin.dto';
+import { ApiKeyAuth } from './decorators/api-key.decorator';
+import { RequirePermissions } from './decorators/require-permissions.decorator';
+import { Permission } from './constants/permissions';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -19,6 +24,7 @@ export class AuthController {
   ) {}
 
   @Post('register')
+  @ApiKeyAuth({ limit: 5, ttl: 60 })
   @ApiOperation({ summary: 'Đăng ký tài khoản mới' })
   @ApiBody({
     type: RegisterDto,
@@ -60,6 +66,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @ApiKeyAuth({ limit: 20, ttl: 60 })
   @ApiOperation({ summary: 'Đăng nhập' })
   @ApiBody({
     type: LoginDto,
@@ -112,6 +119,16 @@ export class AuthController {
   @ApiOperation({ summary: 'Đăng xuất' })
   async logout(@GetCurrentUser('sub') userId: string) {
     return this.authService.logout(userId);
+  }
+
+  @Post('create-admin')
+  @RequirePermissions(Permission.CREATE_ADMIN)
+  @ApiOperation({ summary: 'Tạo tài khoản Admin' })
+  async createAdmin(
+    @Body() createAdminDto: CreateAdminDto,
+    @GetCurrentUser() currentUser: JwtPayload
+  ) {
+    return this.authService.createAdminAccount(createAdminDto);
   }
 
 }

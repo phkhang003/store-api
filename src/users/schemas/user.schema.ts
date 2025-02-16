@@ -1,12 +1,18 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
+import { Permission } from '../../auth/constants/permissions';
 
 export enum UserRole {
-  ADMIN = 'ADMIN',
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  CONTENT_ADMIN = 'CONTENT_ADMIN',
+  PRODUCT_ADMIN = 'PRODUCT_ADMIN',
   USER = 'USER'
 }
 
-@Schema({ timestamps: true })
+@Schema({
+  timestamps: true,
+  collection: 'users'
+})
 export class User {
   @Prop({ required: true })
   name: string;
@@ -17,10 +23,17 @@ export class User {
   @Prop({ required: true })
   password: string;
 
-  @Prop({ type: String, enum: UserRole, default: UserRole.USER })
+  @Prop({ 
+    type: String, 
+    enum: UserRole,
+    default: UserRole.USER 
+  })
   role: UserRole;
 
-  @Prop()
+  @Prop({ type: [String], default: [] })
+  permissions: Permission[];
+
+  @Prop({ nullable: true })
   refreshToken?: string;
 }
 
