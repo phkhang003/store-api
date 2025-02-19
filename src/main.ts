@@ -55,14 +55,18 @@ async function bootstrap() {
     
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/swagger', app, document, {
+    explorer: true,
+    swaggerOptions: {
+      persistAuthorization: true,
+    },
     customSiteTitle: 'Store API Documentation',
-    customfavIcon: 'https://swagger.io/favicon.png',
     customJs: [
-      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.min.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui-bundle.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui-standalone-preset.js'
     ],
     customCssUrl: [
-      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css',
-    ],
+      'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui.css',
+    ]
   });
 
   app.getHttpAdapter().get('/', (req: Request, res: Response) => {
