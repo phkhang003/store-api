@@ -4,24 +4,38 @@ import { PassportModule } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
+import { AdminModule } from '../admin/admin.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { RefreshTokenStrategy } from './strategies/refresh-token.strategy';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { SuperAdminCreationGuard } from './guards/super-admin-creation.guard';
+import { UnauthorizedException } from '@nestjs/common';
 
 @Module({
   imports: [
+    ConfigModule.forRoot(),
     forwardRef(() => UsersModule),
+    forwardRef(() => AdminModule),
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '1d' },
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const secret = configService.get<string>('JWT_SECRET');
+        const refreshSecret = configService.get<string>('JWT_REFRESH_SECRET');
+        
+        if (!secret || !refreshSecret) {
+          throw new UnauthorizedException('JWT secrets không được cấu hình đầy đủ trong file .env');
+        }
+
+        return {
+          secret,
+          signOptions: { expiresIn: '15m' },
+        };
+      },
       inject: [ConfigService],
     }),
   ],
-  providers: [AuthService, JwtStrategy, RefreshTokenStrategy],
+  providers: [AuthService, JwtStrategy, RefreshTokenStrategy, SuperAdminCreationGuard],
   controllers: [AuthController],
   exports: [AuthService],
 })

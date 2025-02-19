@@ -2,7 +2,6 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
-import { Permission } from '../constants/permissions';
 import { UsersService } from '../../users/users.service';
 
 @Injectable()
@@ -13,9 +12,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   ) {
     const jwtSecret = configService.get<string>('JWT_SECRET');
     if (!jwtSecret) {
-      throw new UnauthorizedException(
-        'JWT_SECRET không được cấu hình trong file .env'
-      );
+      throw new UnauthorizedException('JWT_SECRET không được cấu hình');
     }
     
     super({
@@ -31,8 +28,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('User không tồn tại');
     }
     
-    console.log('User permissions:', user.permissions);
-    
     return {
       sub: payload.sub,
       email: payload.email,
@@ -40,4 +35,4 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       permissions: user.permissions
     };
   }
-}
+} 

@@ -14,17 +14,22 @@ import { CreateAdminDto } from './dto/create-admin.dto';
 import { ApiKeyAuth } from './decorators/api-key.decorator';
 import { RequirePermissions } from './decorators/require-permissions.decorator';
 import { Permission } from './constants/permissions';
+import { SuperAdminCreationGuard } from './guards/super-admin-creation.guard';
+import { ApiKeyGuard } from './guards/api-key.guard';
+import { AdminService } from '../admin/admin.service';
+import { Roles } from './decorators/roles.decorator';
 
 @ApiTags('auth')
+@ApiBearerAuth()
 @Controller('auth')
 export class AuthController {
   constructor(
     private authService: AuthService,
-    private usersService: UsersService
+    private usersService: UsersService,
+    private adminService: AdminService
   ) {}
 
   @Post('register')
-  @ApiKeyAuth({ limit: 5, ttl: 60 })
   @ApiOperation({ summary: 'Đăng ký tài khoản mới' })
   @ApiBody({
     type: RegisterDto,
@@ -65,9 +70,31 @@ export class AuthController {
     return this.authService.register(registerDto);
   }
 
+  @Post('admin/login')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.CONTENT_ADMIN, UserRole.PRODUCT_ADMIN)
+  @UseGuards(ApiKeyGuard)
+  @ApiOperation({ summary: 'Đăng nhập tài khoản admin' })
+  @ApiHeader({
+    name: 'x-api-key',
+    description: 'API key for admin authentication'
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Đăng nhập admin thành công',
+    schema: {
+      type: 'object',
+      properties: {
+        access_token: { type: 'string' },
+        refresh_token: { type: 'string' }
+      }
+    }
+  })
+  async adminLogin(@Body() loginDto: LoginDto) {
+    return this.authService.login(loginDto, true);
+  }
+
   @Post('login')
-  @ApiKeyAuth({ limit: 20, ttl: 60 })
-  @ApiOperation({ summary: 'Đăng nhập' })
+  @ApiOperation({ summary: 'Đăng nhập cho user' })
   @ApiBody({
     type: LoginDto,
     schema: {
@@ -102,11 +129,10 @@ export class AuthController {
     return this.authService.login(loginDto);
   }
 
-  @UseGuards(RefreshTokenGuard)
   @Get('refresh')
-  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Làm mới access token' })
-  refreshTokens(
+  async refreshToken(
     @GetCurrentUser('sub') userId: string,
     @GetCurrentUser('refreshToken') refreshToken: string,
   ) {
@@ -115,20 +141,9 @@ export class AuthController {
 
   @Post('logout')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Đăng xuất' })
   async logout(@GetCurrentUser('sub') userId: string) {
     return this.authService.logout(userId);
-  }
-
-  @Post('create-admin')
-  @RequirePermissions(Permission.CREATE_ADMIN)
-  @ApiOperation({ summary: 'Tạo tài khoản Admin' })
-  async createAdmin(
-    @Body() createAdminDto: CreateAdminDto,
-    @GetCurrentUser() currentUser: JwtPayload
-  ) {
-    return this.authService.createAdminAccount(createAdminDto);
   }
 
 }

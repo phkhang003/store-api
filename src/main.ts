@@ -5,8 +5,6 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import { Request, Response } from 'express';
-import { join } from 'path';
-import * as express from 'express';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -29,50 +27,34 @@ async function bootstrap() {
     transform: true,
   }));
 
-  // Serve static files
-  app.use('/public', express.static(join(__dirname, '..', 'public')));
-  
-  const customCss = `
-    .swagger-ui .topbar { display: none }
-    .swagger-ui .info .title { 
-      color: #2c3e50;
-      font-size: 36px;
-    }
-    .swagger-ui .info { 
-      margin: 30px 0;
-    }
-    .swagger-ui .scheme-container {
-      background: #f8f9fa;
-      box-shadow: none;
-    }
-  `;
-  
   const config = new DocumentBuilder()
     .setTitle('Store API')
-    .setDescription('API documentation for Store Management System')
+    .setDescription('API documentation for Store')
     .setVersion('1.0')
-    .addBearerAuth()
-    .addApiKey({ 
-      type: 'apiKey',
-      name: 'x-api-key',
-      in: 'header',
-      description: 'API key for external access'
-    }, 'x-api-key')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT token',
+        in: 'header',
+      },
+      'JWT-auth',
+    )
+    .addApiKey(
+      {
+        type: 'apiKey',
+        name: 'x-api-key',
+        in: 'header',
+        description: 'API key for admin authentication'
+      },
+      'x-api-key'
+    )
     .build();
     
   const document = SwaggerModule.createDocument(app, config);
-  
-  SwaggerModule.setup('api', app, document, {
-    customfavIcon: '/public/favicon.png',
-    customSiteTitle: 'Store API Documentation',
-    customCss: customCss,
-    swaggerOptions: {
-      persistAuthorization: true,
-      docExpansion: 'none',
-      filter: true,
-      showRequestDuration: true
-    }
-  });
+  SwaggerModule.setup('api/swagger', app, document);
 
   app.getHttpAdapter().get('/', (req: Request, res: Response) => {
     res.status(301).redirect('/api/swagger');

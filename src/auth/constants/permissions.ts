@@ -1,6 +1,18 @@
 export enum Permission {
+  // Admin permissions
+  CREATE_ADMIN = 'create:admin',
+  READ_ADMIN = 'read:admin',
+  UPDATE_ADMIN = 'update:admin',
+  DELETE_ADMIN = 'delete:admin',
+
+  // User permissions  
+  CREATE_USER = 'create:user',
+  READ_USER = 'read:user',
+  UPDATE_USER = 'update:user',
+  DELETE_USER = 'delete:user',
+
   // Content permissions
-  CREATE_CONTENT = 'create:content',
+  CREATE_CONTENT = 'create:content', 
   READ_CONTENT = 'read:content',
   UPDATE_CONTENT = 'update:content',
   DELETE_CONTENT = 'delete:content',
@@ -9,16 +21,7 @@ export enum Permission {
   CREATE_PRODUCT = 'create:product',
   READ_PRODUCT = 'read:product',
   UPDATE_PRODUCT = 'update:product',
-  DELETE_PRODUCT = 'delete:product',
-
-  // User permissions
-  CREATE_USER = 'create:user',
-  READ_USER = 'read:user',
-  UPDATE_USER = 'update:user',
-  DELETE_USER = 'delete:user',
-
-  // Admin permissions
-  CREATE_ADMIN = 'create:admin'
+  DELETE_PRODUCT = 'delete:product'
 }
 
 export enum Role {

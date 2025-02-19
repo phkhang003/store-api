@@ -1,7 +1,7 @@
 import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
-import { UserRole } from '../enums/role.enum';
+import { UserRole } from '../../users/schemas/user.schema';
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
@@ -17,7 +17,6 @@ export class ApiKeyGuard implements CanActivate {
 
     const adminRoles = [UserRole.SUPER_ADMIN, UserRole.CONTENT_ADMIN, UserRole.PRODUCT_ADMIN];
     
-    // Nếu không phải admin role -> không cần API key
     if (!roles || !roles.some(role => adminRoles.includes(role))) {
       return true;
     }
@@ -31,7 +30,7 @@ export class ApiKeyGuard implements CanActivate {
 
     const validApiKey = this.configService.get<string>('API_KEY');
     if (!validApiKey) {
-      throw new UnauthorizedException('API_KEY chưa được cấu hình trong file .env');
+      throw new UnauthorizedException('API_KEY chưa được cấu hình');
     }
 
     if (apiKey !== validApiKey) {

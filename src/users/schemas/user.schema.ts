@@ -35,6 +35,9 @@ export class User {
 
   @Prop({ nullable: true })
   refreshToken?: string;
+
+  @Prop({ default: true })
+  isActive: boolean;
 }
 
 export type UserDocument = User & Document;

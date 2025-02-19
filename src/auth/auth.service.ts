@@ -6,14 +6,15 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { UserRole } from '../users/schemas/user.schema';
 import { UserDocument } from '../users/schemas/user.schema';
-import { CreateAdminDto } from './dto/create-admin.dto';
-import { RolePermissions } from './constants/permissions';
+import { Permission, Role, RolePermissions } from './constants/permissions';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
+    private configService: ConfigService,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -36,10 +37,18 @@ export class AuthService {
     return tokens;
   }
 
-  async login(loginDto: LoginDto) {
+  async login(loginDto: LoginDto, isAdminLogin: boolean = false) {
     const user = await this.usersService.findByEmail(loginDto.email);
     if (!user) {
       throw new UnauthorizedException('Email không tồn tại');
+    }
+
+    if (isAdminLogin) {
+      await this.validateAdminRole(user, null);
+    } else {
+      if (user.role !== UserRole.USER) {
+        throw new UnauthorizedException('Vui lòng sử dụng trang đăng nhập admin');
+      }
     }
 
     const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
@@ -52,32 +61,13 @@ export class AuthService {
     return tokens;
   }
 
-  private async generateTokens(user: UserDocument) {
-    const payload = { 
-      sub: user._id,
-      email: user.email,
-      role: user.role,
-      permissions: user.permissions
-    };
-    
-    const [access_token, refresh_token] = await Promise.all([
-      this.jwtService.signAsync(payload, {
-        expiresIn: '15m',
-      }),
-      this.jwtService.signAsync(payload, {
-        expiresIn: '7d',
-      }),
-    ]);
-
-    return {
-      access_token,
-      refresh_token,
-    };
-  }
-
-  private async updateRefreshToken(userId: string, refreshToken: string) {
-    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
-    await this.usersService.updateRefreshToken(userId, hashedRefreshToken);
+  async logout(userId: string) {
+    const user = await this.usersService.findOne(userId);
+    if (!user) {
+      throw new UnauthorizedException('User không tồn tại');
+    }
+    await this.usersService.updateRefreshToken(userId, null);
+    return { message: 'Đăng xuất thành công' };
   }
 
   async refreshTokens(userId: string, refreshToken: string) {
@@ -99,40 +89,55 @@ export class AuthService {
     return tokens;
   }
 
-  async createAdminAccount(createAdminDto: CreateAdminDto) {
-    if (![UserRole.CONTENT_ADMIN, UserRole.PRODUCT_ADMIN].includes(createAdminDto.role)) {
-      throw new UnauthorizedException('Role không hợp lệ');
-    }
-
-    const existingAdmin = await this.usersService.findByRole(createAdminDto.role);
-    if (existingAdmin.length > 0) {
-      throw new UnauthorizedException(`${createAdminDto.role} đã tồn tại`);
-    }
-
-    const rolePermissions = RolePermissions[createAdminDto.role];
-    if (!rolePermissions) {
-      throw new UnauthorizedException('Role không có permissions');
-    }
-
-    const hashedPassword = await bcrypt.hash(createAdminDto.password, 10);
-    const user = await this.usersService.create({
-      ...createAdminDto,
-      password: hashedPassword,
-      role: createAdminDto.role,
-      permissions: rolePermissions
-    });
+  private async generateTokens(user: UserDocument) {
+    const payload = { 
+      sub: user._id,
+      email: user.email,
+      role: user.role,
+      permissions: user.permissions
+    };
     
-    const tokens = await this.generateTokens(user);
-    await this.updateRefreshToken(user._id.toString(), tokens.refresh_token);
-    return tokens;
+    const [access_token, refresh_token] = await Promise.all([
+      this.jwtService.signAsync(payload, {
+        secret: this.configService.get('JWT_SECRET'),
+        expiresIn: '15m',
+      }),
+      this.jwtService.signAsync(payload, {
+        secret: this.configService.get('JWT_REFRESH_SECRET'), 
+        expiresIn: '7d',
+      }),
+    ]);
+
+    return {
+      access_token,
+      refresh_token,
+    };
   }
 
-  async logout(userId: string) {
-    const user = await this.usersService.findOne(userId);
+  private async updateRefreshToken(userId: string, refreshToken: string) {
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+    await this.usersService.updateRefreshToken(userId, hashedRefreshToken);
+  }
+
+  async validateAdminRole(user: UserDocument, requiredRole: UserRole) {
     if (!user) {
       throw new UnauthorizedException('User không tồn tại');
     }
-    await this.usersService.updateRefreshToken(userId, null);
-    return { message: 'Đăng xuất thành công' };
+
+    const adminRoles = [
+      UserRole.SUPER_ADMIN,
+      UserRole.CONTENT_ADMIN,
+      UserRole.PRODUCT_ADMIN
+    ];
+
+    if (!adminRoles.includes(user.role)) {
+      throw new UnauthorizedException('Tài khoản không có quyền admin');
+    }
+
+    if (requiredRole && user.role !== requiredRole) {
+      throw new UnauthorizedException(`Tài khoản không có quyền ${requiredRole}`);
+    }
+
+    return true;
   }
 }
