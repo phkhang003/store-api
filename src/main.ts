@@ -57,7 +57,7 @@ async function bootstrap() {
   SwaggerModule.setup('api/swagger', app, document);
 
   app.getHttpAdapter().get('/', (req: Request, res: Response) => {
-    res.status(301).redirect('/api/swagger');
+    res.status(301).redirect('/api/swagger/');
   });
 
   const port = configService.get<number>('PORT', 3000);
