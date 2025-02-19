@@ -22,14 +22,17 @@ import { AdminModule } from './admin/admin.module';
       }),
       inject: [ConfigService],
     }),
+    ThrottlerModule.forRootAsync({
+      useFactory: (configService: ConfigService) => ([{
+        ttl: 60,
+        limit: configService.get('NODE_ENV') === 'production' ? 10 : 100,
+      }]),
+      inject: [ConfigService],
+    }),
     SecurityModule,
     UsersModule,
     AuthModule,
     AdminModule,
-    ThrottlerModule.forRoot([{
-      ttl: 60,
-      limit: 10,
-    }])
   ],
   providers: [
     {
