@@ -10,7 +10,17 @@ let app;
 async function bootstrap() {
   if (!app) {
     app = await NestFactory.create<NestExpressApplication>(AppModule);
-    app.enableCors();
+    
+    // Cấu hình CORS chi tiết hơn
+    app.enableCors({
+      origin: ['https://foxpc-backend.vercel.app', 'http://localhost:3000'],
+      methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+      allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'x-api-key'],
+      exposedHeaders: ['Content-Range', 'X-Content-Range'],
+      credentials: true,
+      maxAge: 3600
+    });
+
     app.setGlobalPrefix('api');
     app.useGlobalPipes(new ValidationPipe());
 

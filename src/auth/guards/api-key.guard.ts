@@ -28,18 +28,24 @@ export class ApiKeyGuard implements CanActivate {
     const apiKey = request.headers['x-api-key'];
     const validApiKey = this.configService.get<string>('API_KEY');
 
-    this.logger.debug(`Received API Key: ${apiKey}`);
-    this.logger.debug(`Valid API Key: ${validApiKey}`);
+    this.logger.debug('API Key check:', {
+      receivedKey: apiKey,
+      validKey: validApiKey,
+      headers: request.headers
+    });
     
     if (!apiKey) {
+      this.logger.error('Missing API key');
       throw new UnauthorizedException('API key không được tìm thấy');
     }
 
     if (!validApiKey) {
-      throw new UnauthorizedException('API_KEY chưa được cấu hình trong file .env');
+      this.logger.error('API_KEY not configured');
+      throw new UnauthorizedException('API_KEY chưa được cấu hình');
     }
 
     if (apiKey !== validApiKey) {
+      this.logger.error('Invalid API key');
       throw new UnauthorizedException('API key không hợp lệ');
     }
 
