@@ -2,13 +2,14 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../src/app.module';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 const logger = new Logger('API Handler');
 let app;
 
 async function bootstrap() {
   if (!app) {
-    app = await NestFactory.create(AppModule);
+    app = await NestFactory.create<NestExpressApplication>(AppModule);
     app.enableCors();
     app.setGlobalPrefix('api');
     app.useGlobalPipes(new ValidationPipe());
@@ -17,21 +18,38 @@ async function bootstrap() {
       .setTitle('Store API')
       .setDescription('API documentation for Store')
       .setVersion('1.0')
-      .addBearerAuth()
-      .addApiKey(
-        {
-          type: 'apiKey',
-          name: 'x-api-key',
-          in: 'header',
-        },
-        'x-api-key'
-      )
+      .addBearerAuth({
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT token',
+        in: 'header',
+      })
+      .addApiKey({
+        type: 'apiKey',
+        name: 'x-api-key',
+        in: 'header',
+        description: 'API key for admin authentication'
+      })
       .build();
       
     const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('api/swagger', app, document);
+    SwaggerModule.setup('api/swagger', app, document, {
+      explorer: true,
+      swaggerOptions: {
+        persistAuthorization: true,
+      },
+      customSiteTitle: 'Store API Documentation',
+      customJs: [
+        'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui-bundle.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui-standalone-preset.js'
+      ],
+      customCssUrl: [
+        'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.11.0/swagger-ui.css',
+      ]
+    });
 
-    // Add root route handler
     app.getHttpAdapter().get('/', (req, res) => {
       res.redirect('/api/swagger');
     });
