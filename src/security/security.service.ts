@@ -2,6 +2,8 @@ import { Injectable, ExecutionContext } from '@nestjs/common';
 import { PermissionService } from './services/permission.service';
 import { RoleService } from './services/role.service';
 import { IPermission } from './interfaces/permission.interface';
+import { ROLE_PERMISSIONS } from './constants/role-permissions';
+import { Permission } from '../auth/constants/permissions';
 
 @Injectable()
 export class SecurityService {
@@ -10,17 +12,15 @@ export class SecurityService {
     private roleService: RoleService
   ) {}
 
-  getPermissionsForRole(role: string): IPermission[] {
-    return this.roleService.getRolePermissions(role);
+  getPermissionsForRole(role: string): Permission[] {
+    return ROLE_PERMISSIONS[role] || [];
   }
 
-  validatePermissions(userPermissions: IPermission[], requiredPermissions: string[]): boolean {
-    return requiredPermissions.every(required => {
-      const [resource, action] = required.split(':');
-      return userPermissions.some(
-        p => p.resource === resource && p.action === action
-      );
-    });
+  validatePermissions(userRole: string, requiredPermissions: Permission[]): boolean {
+    const userPermissions = this.getPermissionsForRole(userRole);
+    return requiredPermissions.every(permission => 
+      userPermissions.includes(permission)
+    );
   }
 
   validateRequest(context: ExecutionContext): boolean {
@@ -31,10 +31,10 @@ export class SecurityService {
     if (!requiredPermissions) return true;
 
     const userPermissions = this.getPermissionsForRole(user.role);
-    return this.validatePermissions(userPermissions, requiredPermissions);
+    return this.validatePermissions(user.role, requiredPermissions);
   }
 
-  private getRequiredPermissions(context: ExecutionContext): string[] | null {
+  private getRequiredPermissions(context: ExecutionContext): Permission[] | null {
     const handler = context.getHandler();
     const permissions = Reflect.getMetadata('permissions', handler);
     return permissions || null;

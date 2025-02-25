@@ -10,6 +10,7 @@ import { RefreshTokenStrategy } from './strategies/refresh-token.strategy';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { SuperAdminCreationGuard } from './guards/super-admin-creation.guard';
 import { UnauthorizedException } from '@nestjs/common';
+import { SuperAdminService } from './services/super-admin.service';
 
 @Module({
   imports: [
@@ -35,7 +36,13 @@ import { UnauthorizedException } from '@nestjs/common';
       inject: [ConfigService],
     }),
   ],
-  providers: [AuthService, JwtStrategy, RefreshTokenStrategy, SuperAdminCreationGuard],
+  providers: [
+    AuthService, 
+    JwtStrategy, 
+    RefreshTokenStrategy, 
+    SuperAdminCreationGuard,
+    SuperAdminService
+  ],
   controllers: [AuthController],
   exports: [AuthService],
 })

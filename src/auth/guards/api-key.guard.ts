@@ -1,10 +1,12 @@
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '../enums/role.enum';
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
+  private readonly logger = new Logger(ApiKeyGuard.name);
+  
   constructor(
     private configService: ConfigService,
     private reflector: Reflector
@@ -24,12 +26,15 @@ export class ApiKeyGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest();
     const apiKey = request.headers['x-api-key'];
+    const validApiKey = this.configService.get<string>('API_KEY');
+
+    this.logger.debug(`Received API Key: ${apiKey}`);
+    this.logger.debug(`Valid API Key: ${validApiKey}`);
     
     if (!apiKey) {
       throw new UnauthorizedException('API key không được tìm thấy');
     }
 
-    const validApiKey = this.configService.get<string>('API_KEY');
     if (!validApiKey) {
       throw new UnauthorizedException('API_KEY chưa được cấu hình trong file .env');
     }

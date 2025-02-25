@@ -127,4 +127,21 @@ export class UsersService {
   async findById(id: string): Promise<UserDocument> {
     return this.userModel.findById(id);
   }
+
+  async createAdmin(adminData: {
+    name: string;
+    email: string;
+    password: string; // Đã được hash
+    role: UserRole;
+  }): Promise<UserDocument> {
+    const permissions = this.securityService.getPermissionsForRole(adminData.role);
+    
+    const newAdmin = new this.userModel({
+      ...adminData,
+      permissions,
+      isActive: true
+    });
+    
+    return newAdmin.save();
+  }
 }

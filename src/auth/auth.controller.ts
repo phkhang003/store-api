@@ -146,4 +146,10 @@ export class AuthController {
     return this.authService.logout(userId);
   }
 
+  @Get('check-admin')
+  @ApiOperation({ summary: 'Kiểm tra tài khoản admin' })
+  async checkAdmin() {
+    return this.authService.checkAdminAccount();
+  }
+
 }

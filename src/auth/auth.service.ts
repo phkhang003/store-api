@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
@@ -38,9 +38,36 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto, isAdminLogin: boolean = false) {
+    const logger = new Logger('AuthService');
+    
+    logger.debug('Login attempt:', {
+      dto: loginDto,
+      isAdminLogin
+    });
+
     const user = await this.usersService.findByEmail(loginDto.email);
+    
+    logger.debug('Found user:', {
+      id: user?._id,
+      email: user?.email,
+      role: user?.role,
+      hashedPassword: user?.password
+    });
+
     if (!user) {
       throw new UnauthorizedException('Email không tồn tại');
+    }
+
+    const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
+    
+    logger.debug('Password validation:', {
+      isValid: isPasswordValid,
+      providedPassword: loginDto.password,
+      hashedPassword: user.password
+    });
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Mật khẩu không đúng');
     }
 
     if (isAdminLogin) {
@@ -49,11 +76,6 @@ export class AuthService {
       if (user.role !== UserRole.USER) {
         throw new UnauthorizedException('Vui lòng sử dụng trang đăng nhập admin');
       }
-    }
-
-    const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Mật khẩu không đúng');
     }
 
     const tokens = await this.generateTokens(user);
@@ -120,9 +142,16 @@ export class AuthService {
   }
 
   async validateAdminRole(user: UserDocument, requiredRole: UserRole) {
+    const logger = new Logger('AuthService');
+    
     if (!user) {
       throw new UnauthorizedException('User không tồn tại');
     }
+
+    logger.debug('Validating admin role:', {
+      userRole: user.role,
+      requiredRole: requiredRole
+    });
 
     const adminRoles = [
       UserRole.SUPER_ADMIN,
@@ -131,13 +160,31 @@ export class AuthService {
     ];
 
     if (!adminRoles.includes(user.role)) {
+      logger.error(`Invalid role: ${user.role}`);
       throw new UnauthorizedException('Tài khoản không có quyền admin');
     }
 
     if (requiredRole && user.role !== requiredRole) {
+      logger.error(`Role mismatch: ${user.role} vs ${requiredRole}`);
       throw new UnauthorizedException(`Tài khoản không có quyền ${requiredRole}`);
     }
 
     return true;
+  }
+
+  async checkAdminAccount() {
+    const logger = new Logger('AuthService');
+    
+    const adminEmail = this.configService.get<string>('SUPER_ADMIN_EMAIL');
+    const admin = await this.usersService.findByEmail(adminEmail);
+    
+    logger.debug('Admin account check:', {
+      exists: !!admin,
+      email: adminEmail,
+      role: admin?.role,
+      hashedPassword: admin?.password
+    });
+
+    return !!admin;
   }
 }

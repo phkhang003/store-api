@@ -1,27 +1,39 @@
+import { UserRole } from '../../users/schemas/user.schema';
+
 export enum Permission {
+  // User permissions
+  READ_PROFILE = 'profile:read',
+  UPDATE_PROFILE = 'profile:update',
+  
   // Admin permissions
-  CREATE_ADMIN = 'create:admin',
-  READ_ADMIN = 'read:admin',
-  UPDATE_ADMIN = 'update:admin',
-  DELETE_ADMIN = 'delete:admin',
-
-  // User permissions  
-  CREATE_USER = 'create:user',
-  READ_USER = 'read:user',
-  UPDATE_USER = 'update:user',
-  DELETE_USER = 'delete:user',
-
-  // Content permissions
-  CREATE_CONTENT = 'create:content', 
-  READ_CONTENT = 'read:content',
-  UPDATE_CONTENT = 'update:content',
-  DELETE_CONTENT = 'delete:content',
+  CREATE_ADMIN = 'admin:create',
+  READ_ADMIN = 'admin:read',
+  UPDATE_ADMIN = 'admin:update',
+  DELETE_ADMIN = 'admin:delete',
+  
+  // User management
+  CREATE_USER = 'users:create',
+  READ_USER = 'users:read',
+  UPDATE_USER = 'users:update',
+  DELETE_USER = 'users:delete',
+  
+  // Content permissions  
+  CREATE_CONTENT = 'content:create',
+  READ_CONTENT = 'content:read',
+  UPDATE_CONTENT = 'content:update',
+  DELETE_CONTENT = 'content:delete',
 
   // Product permissions
-  CREATE_PRODUCT = 'create:product',
-  READ_PRODUCT = 'read:product',
-  UPDATE_PRODUCT = 'update:product',
-  DELETE_PRODUCT = 'delete:product'
+  CREATE_PRODUCT = 'products:create',
+  READ_PRODUCT = 'products:read',
+  UPDATE_PRODUCT = 'products:update',
+  DELETE_PRODUCT = 'products:delete',
+  
+  // Order permissions
+  CREATE_ORDER = 'orders:create',
+  READ_ORDER = 'orders:read',
+  UPDATE_ORDER = 'orders:update',
+  DELETE_ORDER = 'orders:delete'
 }
 
 export enum Role {
