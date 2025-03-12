@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Param, Delete, Put, UseGuards, UnauthorizedException, NotFoundException, Headers } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody, ApiHeader } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody, ApiHeader, ApiParam } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -14,6 +14,7 @@ import { ApiKeyGuard } from '../auth/guards/api-key.guard';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { ApiKeyAuth } from '../auth/decorators/api-key.decorator';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -54,37 +55,18 @@ export class UsersController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Lấy thông tin user theo id' })
-  @ApiHeader({
-    name: 'x-api-key',
-    description: 'API key for admin authentication',
-    required: true
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Thông tin user',
-    schema: {
-      type: 'object',
-      properties: {
-        _id: { type: 'string' },
-        name: { type: 'string' },
-        email: { type: 'string' },
-        role: { 
-          type: 'string', 
-          enum: ['SUPER_ADMIN', 'CONTENT_ADMIN', 'PRODUCT_ADMIN', 'USER']
-        },
-        isActive: { type: 'boolean' },
-        createdAt: { type: 'string', format: 'date-time' },
-        updatedAt: { type: 'string', format: 'date-time' }
-      }
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Lấy thông tin người dùng theo ID' })
+  @ApiParam({ name: 'id', description: 'ID của người dùng' })
+  @ApiResponse({ status: 200, description: 'Thông tin người dùng.' })
+  @ApiResponse({ status: 404, description: 'Người dùng không tồn tại.' })
+  findOne(@Param('id') id: string, @GetCurrentUser() currentUser: JwtPayload) {
+    // Chỉ cho phép xem thông tin của chính mình hoặc admin
+    if (id !== currentUser.sub && currentUser.role !== 'SUPER_ADMIN') {
+      throw new Error('Không có quyền truy cập thông tin người dùng này');
     }
-  })
-  async findOne(
-    @Headers('x-api-key') apiKey: string,
-    @Param('id') id: string,
-    @GetCurrentUser() currentUser: JwtPayload
-  ) {
-    return this.usersService.findOne(id);
+    return this.usersService.findById(id);
   }
 
   @Put(':id')
@@ -105,5 +87,70 @@ export class UsersController {
     @GetCurrentUser() currentUser: JwtPayload
   ) {
     return this.usersService.toggleUserStatus(id);
+  }
+
+  @Post('register')
+  @ApiOperation({ summary: 'Đăng ký người dùng mới' })
+  @ApiBody({
+    type: CreateUserDto,
+    description: 'Thông tin đăng ký người dùng',
+    examples: {
+      example1: {
+        summary: 'Đăng ký người dùng',
+        value: {
+          name: 'Nguyễn Văn A',
+          email: 'nguyenvana@example.com',
+          password: 'password123',
+          phone: '0987654321'
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 201, description: 'Người dùng đã được tạo thành công.' })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ hoặc email đã tồn tại.' })
+  register(@Body() createUserDto: CreateUserDto) {
+    return this.usersService.create(createUserDto);
+  }
+
+  @Get('profile')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Lấy thông tin người dùng hiện tại' })
+  @ApiResponse({ status: 200, description: 'Thông tin người dùng.' })
+  @ApiResponse({ status: 401, description: 'Không có quyền truy cập.' })
+  getProfile(@GetCurrentUser() currentUser: JwtPayload) {
+    return this.usersService.findById(currentUser.sub);
+  }
+
+  @Put('profile')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Cập nhật thông tin người dùng hiện tại' })
+  @ApiBody({
+    type: UpdateUserDto,
+    description: 'Thông tin cập nhật người dùng',
+    examples: {
+      example1: {
+        summary: 'Cập nhật thông tin',
+        value: {
+          name: 'Nguyễn Văn A',
+          phone: '0987654321',
+          address: {
+            street: 'Số 123, Đường Nguyễn Huệ',
+            city: 'Hồ Chí Minh',
+            district: 'Quận 1',
+            ward: 'Bến Nghé'
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 200, description: 'Thông tin người dùng đã được cập nhật.' })
+  @ApiResponse({ status: 401, description: 'Không có quyền truy cập.' })
+  updateProfile(
+    @GetCurrentUser() currentUser: JwtPayload,
+    @Body() updateUserDto: UpdateUserDto
+  ) {
+    return this.usersService.update(currentUser.sub, updateUserDto);
   }
 }

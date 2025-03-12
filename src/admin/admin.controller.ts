@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Put, Param, UseGuards, Headers } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiHeader, ApiSecurity } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse, ApiHeader, ApiSecurity, ApiBody } from '@nestjs/swagger';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiKeyGuard } from '../auth/guards/api-key.guard';
@@ -8,6 +8,7 @@ import { Permission } from '../auth/constants/permissions';
 import { CreateAdminDto } from './dto/create-admin.dto';
 import { UserRole } from '../users/schemas/user.schema';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { AdminRoute } from '../auth/decorators/admin-route.decorator';
 
 @ApiTags('admin')
 @ApiBearerAuth()
@@ -19,12 +20,43 @@ export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
   @Post()
-  @RequirePermissions(Permission.CREATE_ADMIN)
-  @ApiOperation({ summary: 'Tạo tài khoản admin mới' })
+  @AdminRoute(
+    [UserRole.SUPER_ADMIN],
+    [Permission.CREATE_ADMIN],
+    'Tạo tài khoản admin mới'
+  )
   @ApiHeader({
     name: 'x-api-key',
     description: 'API key for admin authentication',
     required: true
+  })
+  @ApiBody({
+    type: CreateAdminDto,
+    description: 'Thông tin tài khoản admin mới',
+    examples: {
+      example1: {
+        summary: 'Tạo Content Admin',
+        value: {
+          name: 'Content Admin',
+          email: 'content@example.com',
+          password: 'password123',
+          role: 'CONTENT_ADMIN'
+        }
+      },
+      example2: {
+        summary: 'Tạo Product Admin',
+        value: {
+          name: 'Product Admin',
+          email: 'product@example.com',
+          password: 'password123',
+          role: 'PRODUCT_ADMIN'
+        }
+      }
+    }
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Admin đã được tạo thành công'
   })
   async createAdmin(
     @Headers('x-api-key') apiKey: string,
@@ -46,8 +78,11 @@ export class AdminController {
   }
 
   @Put(':id/permissions')
-  @RequirePermissions(Permission.UPDATE_ADMIN)
-  @ApiOperation({ summary: 'Cập nhật quyền cho admin' })
+  @AdminRoute(
+    [UserRole.SUPER_ADMIN],
+    [Permission.UPDATE_ADMIN],
+    'Cập nhật quyền cho admin'
+  )
   @ApiHeader({
     name: 'x-api-key',
     description: 'API key for admin authentication',

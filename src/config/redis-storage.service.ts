@@ -100,40 +100,46 @@ export class RedisThrottleStorage implements ThrottlerStorage, OnModuleDestroy {
 
   async get(key: string): Promise<StorageRecord> {
     if (!this.isRedisConnected) {
-      return {
-        totalHits: 0,
-        timeToExpire: 0,
-        isBlocked: false,
-        timeToBlockExpire: 0
-      };
+      return null;
     }
 
     try {
-      const [count, ttl] = await Promise.all([
-        this.redis.get(key),
-        this.redis.ttl(key),
-      ]);
-      
+      const value = await this.redis.get(key);
+      if (!value) {
+        return null;
+      }
+
+      const ttlRemaining = await this.redis.ttl(key);
       return {
-        totalHits: count ? Number(count) : 0,
-        timeToExpire: ttl,
+        totalHits: parseInt(value, 10),
+        timeToExpire: ttlRemaining,
         isBlocked: false,
         timeToBlockExpire: 0
       };
     } catch (error) {
       this.logger.error(`Redis get error: ${error.message}`);
-      return {
-        totalHits: 0,
-        timeToExpire: 0,
-        isBlocked: false,
-        timeToBlockExpire: 0
-      };
+      return null;
+    }
+  }
+
+  async delete(key: string): Promise<boolean> {
+    if (!this.isRedisConnected) {
+      return false;
+    }
+
+    try {
+      await this.redis.del(key);
+      return true;
+    } catch (error) {
+      this.logger.error(`Redis delete error: ${error.message}`);
+      return false;
     }
   }
 
   async onModuleDestroy() {
-    if (this.redis) {
+    if (this.redis && this.isRedisConnected) {
       await this.redis.quit();
+      this.logger.log('Redis connection closed');
     }
   }
 } 

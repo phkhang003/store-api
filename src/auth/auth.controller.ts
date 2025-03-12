@@ -33,26 +33,16 @@ export class AuthController {
   @ApiOperation({ summary: 'Đăng ký tài khoản mới' })
   @ApiBody({
     type: RegisterDto,
-    schema: {
-      type: 'object',
-      properties: {
-        name: {
-          type: 'string',
-          example: 'John Doe',
-          description: 'Tên người dùng'
-        },
-        email: {
-          type: 'string',
-          example: 'john@example.com',
-          description: 'Email đăng nhập'
-        },
-        password: {
-          type: 'string',
-          example: 'password123',
-          description: 'Mật khẩu (tối thiểu 6 ký tự)'
+    description: 'Thông tin đăng ký tài khoản',
+    examples: {
+      example1: {
+        summary: 'Đăng ký user',
+        value: {
+          name: 'John Doe',
+          email: 'john@example.com',
+          password: 'password123'
         }
-      },
-      required: ['name', 'email', 'password']
+      }
     }
   })
   @ApiResponse({
@@ -78,6 +68,19 @@ export class AuthController {
     name: 'x-api-key',
     description: 'API key for admin authentication'
   })
+  @ApiBody({
+    type: LoginDto,
+    description: 'Thông tin đăng nhập admin',
+    examples: {
+      example1: {
+        summary: 'Đăng nhập admin',
+        value: {
+          email: 'admin@example.com',
+          password: 'password123'
+        }
+      }
+    }
+  })
   @ApiResponse({
     status: 200,
     description: 'Đăng nhập admin thành công',
@@ -97,21 +100,15 @@ export class AuthController {
   @ApiOperation({ summary: 'Đăng nhập cho user' })
   @ApiBody({
     type: LoginDto,
-    schema: {
-      type: 'object',
-      properties: {
-        email: {
-          type: 'string',
-          example: 'john@example.com',
-          description: 'Email đăng nhập'
-        },
-        password: {
-          type: 'string',
-          example: 'password123',
-          description: 'Mật khẩu'
+    description: 'Thông tin đăng nhập',
+    examples: {
+      example1: {
+        summary: 'Đăng nhập user',
+        value: {
+          email: 'user@example.com',
+          password: 'password123'
         }
-      },
-      required: ['email', 'password']
+      }
     }
   })
   @ApiResponse({

@@ -1,9 +1,29 @@
 import { UserRole } from '../../users/schemas/user.schema';
 
 export enum Permission {
-  // User permissions
-  READ_PROFILE = 'profile:read',
-  UPDATE_PROFILE = 'profile:update',
+  // Product permissions
+  CREATE_PRODUCT = 'products:create',
+  READ_PRODUCT = 'products:read',
+  UPDATE_PRODUCT = 'products:update',
+  DELETE_PRODUCT = 'products:delete',
+  
+  // Content permissions
+  CREATE_CONTENT = 'content:create',
+  READ_CONTENT = 'content:read',
+  UPDATE_CONTENT = 'content:update',
+  DELETE_CONTENT = 'content:delete',
+  
+  // Brand permissions
+  CREATE_BRAND = 'brands:create',
+  READ_BRAND = 'brands:read',
+  UPDATE_BRAND = 'brands:update',
+  DELETE_BRAND = 'brands:delete',
+  
+  // Order permissions
+  CREATE_ORDER = 'orders:create',
+  READ_ORDER = 'orders:read',
+  UPDATE_ORDER = 'orders:update',
+  DELETE_ORDER = 'orders:delete',
   
   // Admin permissions
   CREATE_ADMIN = 'admin:create',
@@ -11,29 +31,17 @@ export enum Permission {
   UPDATE_ADMIN = 'admin:update',
   DELETE_ADMIN = 'admin:delete',
   
-  // User management
+  // User permissions
   CREATE_USER = 'users:create',
   READ_USER = 'users:read',
   UPDATE_USER = 'users:update',
   DELETE_USER = 'users:delete',
+  READ_PROFILE = 'profile:read',
+  UPDATE_PROFILE = 'profile:update',
   
-  // Content permissions  
-  CREATE_CONTENT = 'content:create',
-  READ_CONTENT = 'content:read',
-  UPDATE_CONTENT = 'content:update',
-  DELETE_CONTENT = 'content:delete',
-
-  // Product permissions
-  CREATE_PRODUCT = 'products:create',
-  READ_PRODUCT = 'products:read',
-  UPDATE_PRODUCT = 'products:update',
-  DELETE_PRODUCT = 'products:delete',
-  
-  // Order permissions
-  CREATE_ORDER = 'orders:create',
-  READ_ORDER = 'orders:read',
-  UPDATE_ORDER = 'orders:update',
-  DELETE_ORDER = 'orders:delete'
+  // Other permissions
+  MANAGE_PROMOTIONS = 'promotions:manage',
+  UPDATE_INVENTORY = 'inventory:update'
 }
 
 export enum Role {
@@ -44,27 +52,28 @@ export enum Role {
 }
 
 export const RolePermissions = {
-  SUPER_ADMIN: [
-    ...Object.values(Permission)
-  ],
-  CONTENT_ADMIN: [
-    Permission.CREATE_CONTENT,
-    Permission.READ_CONTENT,
-    Permission.UPDATE_CONTENT,
-    Permission.DELETE_CONTENT,
-    Permission.READ_PRODUCT,
-    Permission.READ_USER
-  ],
-  PRODUCT_ADMIN: [
+  [UserRole.SUPER_ADMIN]: Object.values(Permission),
+  [UserRole.PRODUCT_ADMIN]: [
     Permission.CREATE_PRODUCT,
     Permission.READ_PRODUCT,
     Permission.UPDATE_PRODUCT,
     Permission.DELETE_PRODUCT,
-    Permission.READ_CONTENT,
+    Permission.UPDATE_INVENTORY,
+    Permission.MANAGE_PROMOTIONS,
     Permission.READ_USER
   ],
-  USER: [
+  [UserRole.CONTENT_ADMIN]: [
+    Permission.CREATE_CONTENT,
     Permission.READ_CONTENT,
-    Permission.READ_PRODUCT
+    Permission.UPDATE_CONTENT,
+    Permission.DELETE_CONTENT,
+    Permission.READ_USER
+  ],
+  [UserRole.USER]: [
+    Permission.READ_PROFILE,
+    Permission.UPDATE_PROFILE,
+    Permission.READ_PRODUCT,
+    Permission.CREATE_ORDER,
+    Permission.READ_ORDER
   ]
-}
+};

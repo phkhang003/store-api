@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Schema as MongooseSchema } from 'mongoose';
 import { Permission } from '../../auth/constants/permissions';
 
 export enum UserRole {
@@ -9,19 +9,36 @@ export enum UserRole {
   USER = 'USER'
 }
 
-@Schema({
-  timestamps: true,
-  collection: 'users'
-})
+export type UserDocument = User & Document;
+
+@Schema({ timestamps: true, collection: 'users' })
 export class User {
   @Prop({ required: true })
   name: string;
+
+  @Prop()
+  dob: Date;
 
   @Prop({ required: true, unique: true })
   email: string;
 
   @Prop({ required: true })
   password: string;
+
+  @Prop()
+  phoneNumber: string;
+
+  @Prop()
+  gender: string;
+
+  @Prop()
+  oauthProvider: string;
+
+  @Prop({ default: false })
+  isVerified: boolean;
+
+  @Prop({ type: [MongooseSchema.Types.ObjectId], ref: 'Address' })
+  addressIds: MongooseSchema.Types.ObjectId[];
 
   @Prop({ 
     type: String, 
@@ -40,5 +57,4 @@ export class User {
   isActive: boolean;
 }
 
-export type UserDocument = User & Document;
 export const UserSchema = SchemaFactory.createForClass(User);
