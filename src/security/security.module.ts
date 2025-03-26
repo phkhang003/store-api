@@ -4,12 +4,12 @@ import { PermissionService } from './services/permission.service';
 import { RoleService } from './services/role.service';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import { JwtStrategy } from './strategies/jwt.strategy';
-import { RefreshTokenStrategy } from './strategies/refresh-token.strategy';
+import { JwtStrategy } from '../auth/strategies/jwt.strategy';
+import { RefreshTokenStrategy } from '../auth/strategies/refresh-token.strategy';
 import { ConfigService } from '@nestjs/config';
 import { UsersModule } from '../users/users.module';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { ApiKeyGuard } from './guards/api-key.guard';
+import { ApiKeyGuard } from '../auth/guards/api-key.guard';
 import { RateLimitGuard } from './guards/rate-limit.guard';
 import { PermissionGuard } from './guards/permission.guard';
 

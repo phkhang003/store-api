@@ -1,206 +1,255 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { InjectModel, InjectConnection } from '@nestjs/mongoose';
+import { Model, Schema as MongooseSchema, Types, Connection } from 'mongoose';
 import { Order, OrderDocument } from './schemas/order.schema';
-import { OrderStatus, PaymentStatus } from './enums/order.enum';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { UpdateOrderDto } from './dto/update-order.dto';
 import { ProductsService } from '../products/products.service';
+import { VouchersService } from '../vouchers/vouchers.service';
+import { CartsService } from '../carts/carts.service';
+import { ProductNotFoundException, InsufficientStockException } from '../common/exceptions';
+import { OrderProductDto } from './dto/order-product.dto';
+import { ProductDocument } from '../products/schemas/product.schema';
+import { OrderStatus } from '../common/constants/order.constants';
+import { PaymentsService } from '../payments/payments.service';
+import { PaymentStatus } from '../payments/schemas/payment.schema';
+import { CreatePaymentDto } from '../payments/dto/create-payment.dto';
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import { UserRole } from '../auth/enums/role.enum';
 import { UsersService } from '../users/users.service';
-import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
-import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
-import { PromotionsService } from '../promotions/promotions.service';
 
 @Injectable()
 export class OrdersService {
   constructor(
     @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
     private readonly productsService: ProductsService,
+    private readonly vouchersService: VouchersService,
+    private readonly cartsService: CartsService,
+    private readonly paymentsService: PaymentsService,
     private readonly usersService: UsersService,
-    private promotionsService: PromotionsService
+    @InjectConnection() private readonly connection: Connection
   ) {}
 
-  async create(createOrderDto: CreateOrderDto, userId: string): Promise<Order> {
-    let totalPrice = 0;
-    for (const item of createOrderDto.items) {
-      const product = await this.productsService.findOne(item.productId);
-      if (!product) {
-        throw new BadRequestException(`Sản phẩm với ID ${item.productId} không tồn tại`);
-      }
+  async create(userId: string, createOrderDto: CreateOrderDto): Promise<OrderDocument> {
+    const session = await this.connection.startSession();
+    session.startTransaction();
+
+    try {
+      // Thêm validation số lượng tồn kho
+      await this.validateInventory(createOrderDto.products);
       
-      if (!product.isActive) {
-        throw new BadRequestException(`Sản phẩm ${product.name} hiện không còn bán`);
-      }
+      const { orderProducts, totalPrice } = await this.validateProducts(createOrderDto.products);
+      const { voucherData, finalPrice } = await this.validateVoucher(createOrderDto.voucherId, totalPrice);
 
-      if (product.stockQuantity < item.quantity) {
-        throw new BadRequestException(
-          `Sản phẩm ${product.name} chỉ còn ${product.stockQuantity} sản phẩm trong kho`
-        );
-      }
+      // Tạo đơn hàng
+      const order = await this.orderModel.create({
+        userId: new MongooseSchema.Types.ObjectId(userId),
+        products: orderProducts,
+        totalPrice,
+        voucher: voucherData,
+        finalPrice,
+        status: OrderStatus.PENDING,
+        shippingInfo: createOrderDto.shippingInfo,
+        branchId: new MongooseSchema.Types.ObjectId(createOrderDto.branchId)
+      });
 
-      const price = product.discountPercentage 
-        ? product.price * (1 - product.discountPercentage / 100)
-        : product.price;
-        
-      totalPrice += price * item.quantity;
+      // Tạo payment record
+      const paymentDto: CreatePaymentDto = {
+        orderId: order._id.toString(),
+        userId: userId,
+        amount: finalPrice,
+        method: createOrderDto.paymentMethod,
+      };
+      
+      // Lấy user để lấy email
+      const user = await this.usersService.findOne(userId);
+      
+      const jwtPayload: JwtPayload = {
+        sub: userId,
+        role: UserRole.USER,
+        email: user.email // Lấy email từ user thay vì shipping info
+      };
+      
+      await this.paymentsService.create(paymentDto, jwtPayload);
+
+      // Xóa giỏ hàng
+      await this.cartsService.clearCart(userId);
+
+      await session.commitTransaction();
+      return order;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
     }
-
-    let discount = 0;
-    if (createOrderDto.couponCode) {
-      const validationResult = await this.promotionsService.validate(
-        createOrderDto.couponCode,
-        userId,
-        totalPrice
-      );
-      discount = validationResult.discountAmount;
-      totalPrice -= discount;
-    }
-
-    const order = new this.orderModel({
-      ...createOrderDto,
-      userId,
-      totalPrice,
-      orderStatus: OrderStatus.PENDING,
-      paymentStatus: PaymentStatus.PENDING,
-      discount
-    });
-
-    return order.save();
   }
 
-  async findAll(query: any = {}): Promise<{ orders: Order[], total: number }> {
-    const { page = 1, limit = 10, ...filters } = query;
-    const skip = (page - 1) * limit;
-
-    const orders = await this.orderModel.find(filters)
-      .populate('userId', 'email name')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .exec();
-
-    const total = await this.orderModel.countDocuments(filters);
-
-    return { orders, total };
+  async findByUserId(userId: string): Promise<OrderDocument[]> {
+    return this.orderModel.find({ 
+      userId: new MongooseSchema.Types.ObjectId(userId) 
+    })
+    .sort({ createdAt: -1 })
+    .populate('products.productId', 'name images')
+    .exec();
   }
 
-  async findOne(id: string): Promise<Order> {
+  async findOne(id: string): Promise<OrderDocument> {
     const order = await this.orderModel.findById(id)
-      .populate('userId', 'email name')
+      .populate('products.productId', 'name images price')
+      .populate('branchId', 'name address')
       .exec();
-      
-    if (!order) {
-      throw new NotFoundException(`Đơn hàng với ID ${id} không tồn tại`);
-    }
-    
-    return order;
-  }
 
-  async findByUser(userId: string): Promise<Order[]> {
-    return this.orderModel.find({ userId })
-      .sort({ createdAt: -1 })
-      .exec();
-  }
-
-  async update(id: string, updateOrderDto: UpdateOrderDto): Promise<Order> {
-    const order = await this.orderModel.findById(id);
     if (!order) {
       throw new NotFoundException('Đơn hàng không tồn tại');
     }
+    return order;
+  }
+
+  async updateStatus(id: string, status: OrderStatus): Promise<OrderDocument> {
+    const order = await this.findOne(id);
     
-    return this.orderModel.findByIdAndUpdate(
-      id,
-      updateOrderDto,
-      { new: true }
-    );
-  }
-
-  async updateStatus(id: string, updateStatusDto: UpdateOrderStatusDto) {
-    const order = await this.orderModel.findById(id);
-    if (!order) {
-      throw new NotFoundException(`Đơn hàng với ID ${id} không tồn tại`);
+    if (!Object.values(OrderStatus).includes(status)) {
+      throw new BadRequestException('Trạng thái đơn hàng không hợp lệ');
     }
 
-    return this.orderModel.findByIdAndUpdate(
-      id,
-      { 
-        orderStatus: updateStatusDto.status,
-        ...(updateStatusDto.cancelReason && { cancelReason: updateStatusDto.cancelReason })
-      },
-      { new: true }
-    );
-  }
-
-  async updatePaymentStatus(id: string, updatePaymentStatusDto: UpdatePaymentStatusDto) {
-    const order = await this.orderModel.findById(id);
-    if (!order) {
-      throw new NotFoundException(`Đơn hàng với ID ${id} không tồn tại`);
+    if (order.status === OrderStatus.CANCELLED) {
+      throw new BadRequestException('Không thể cập nhật đơn hàng đã hủy');
     }
 
-    const updateData: any = { 
-      paymentStatus: updatePaymentStatusDto.paymentStatus 
-    };
+    if (order.status === OrderStatus.COMPLETED) {
+      throw new BadRequestException('Không thể cập nhật đơn hàng đã hoàn thành');
+    }
+
+    order.status = status;
+    return order.save();
+  }
+
+  async findByStatus(status: string): Promise<OrderDocument[]> {
+    return this.orderModel.find({ status })
+      .sort({ createdAt: -1 })
+      .populate('products.productId', 'name images')
+      .populate('branchId', 'name address')
+      .exec();
+  }
+
+  async findByBranch(branchId: string): Promise<OrderDocument[]> {
+    return this.orderModel.find({ 
+      branchId: new MongooseSchema.Types.ObjectId(branchId) 
+    })
+      .sort({ createdAt: -1 })
+      .populate('products.productId', 'name images')
+      .populate('branchId', 'name address')
+      .exec();
+  }
+
+  async cancelOrder(id: string): Promise<OrderDocument> {
+    const order = await this.findOne(id);
     
-    if (updatePaymentStatusDto.paymentId) {
-      updateData.paymentId = updatePaymentStatusDto.paymentId;
+    if (order.status !== 'pending') {
+      throw new BadRequestException('Chỉ có thể hủy đơn hàng đang chờ xử lý');
     }
 
-    return this.orderModel.findByIdAndUpdate(id, updateData, { new: true });
+    order.status = 'cancelled';
+    return order.save();
   }
 
-  async updateTracking(id: string, trackingNumber: string) {
-    const order = await this.orderModel.findById(id);
-    if (!order) {
-      throw new NotFoundException(`Đơn hàng với ID ${id} không tồn tại`);
+  async completeOrder(id: string): Promise<OrderDocument> {
+    const order = await this.findOne(id);
+    
+    // Kiểm tra payment status
+    const payment = await this.paymentsService.findByOrderId(id);
+    if (payment.status !== PaymentStatus.COMPLETED) {
+      throw new BadRequestException('Không thể hoàn thành đơn hàng chưa thanh toán');
+    }
+    
+    if (order.status !== 'shipped') {
+      throw new BadRequestException('Chỉ có thể hoàn thành đơn hàng đang giao');
     }
 
-    return this.orderModel.findByIdAndUpdate(
-      id, 
-      { trackingNumber }, 
-      { new: true }
-    );
+    order.status = 'completed';
+    return order.save();
   }
 
-  async cancelOrder(id: string, cancelReason: string) {
-    const order = await this.orderModel.findById(id);
-    if (!order) {
-      throw new NotFoundException(`Đơn hàng với ID ${id} không tồn tại`);
+  private async validateProducts(products: OrderProductDto[]): Promise<{
+    orderProducts: any[];
+    totalPrice: number;
+  }> {
+    const orderProducts = [];
+    let totalPrice = 0;
+
+    for (const item of products) {
+      const product = await this.productsService.findOne(item.productId);
+      if (!product) {
+        throw new ProductNotFoundException(item.productId);
+      }
+
+      const price = await this.calculateProductPrice(product, item);
+      totalPrice += price * item.quantity;
+      
+      orderProducts.push({
+        productId: new MongooseSchema.Types.ObjectId(item.productId),
+        variantId: item.variantId ? new MongooseSchema.Types.ObjectId(item.variantId) : undefined,
+        options: item.options,
+        quantity: item.quantity,
+        price
+      });
     }
 
-    if (![OrderStatus.PENDING, OrderStatus.PROCESSING].includes(order.orderStatus)) {
-      throw new Error('Không thể hủy đơn hàng ở trạng thái hiện tại');
-    }
-
-    return this.orderModel.findByIdAndUpdate(
-      id, 
-      { 
-        orderStatus: OrderStatus.CANCELLED, 
-        cancelReason,
-        cancelledAt: new Date()
-      }, 
-      { new: true }
-    );
+    return { orderProducts, totalPrice };
   }
 
-  async requestReturn(id: string, returnData: any) {
-    const order = await this.orderModel.findById(id);
-    if (!order) {
-      throw new NotFoundException(`Đơn hàng với ID ${id} không tồn tại`);
-    }
+  private async calculateProductPrice(product: ProductDocument, item: OrderProductDto): Promise<number> {
+    if (!item.variantId) return product.price;
 
-    if (order.orderStatus !== OrderStatus.DELIVERED) {
-      throw new Error('Chỉ có thể yêu cầu trả hàng với đơn hàng đã giao');
-    }
-
-    return this.orderModel.findByIdAndUpdate(
-      id, 
-      { 
-        orderStatus: OrderStatus.RETURNED,
-        returnReason: returnData.reason,
-        returnImages: returnData.images,
-        returnRequestedAt: new Date()
-      }, 
-      { new: true }
+    const variant = product.variants?.find(
+      v => v.variantId.toString() === item.variantId
     );
+    if (!variant) {
+      throw new NotFoundException(`Biến thể của sản phẩm ${product.name} không tồn tại`);
+    }
+    return variant.price;
+  }
+
+  private async validateVoucher(voucherId: string, totalPrice: number): Promise<{
+    voucherData?: any;
+    finalPrice: number;
+  }> {
+    let finalPrice = totalPrice;
+    let voucherData;
+
+    if (voucherId) {
+      const voucher = await this.vouchersService.findOne(voucherId);
+      if (totalPrice < voucher.minimumOrderValue) {
+        throw new BadRequestException('Đơn hàng chưa đạt giá trị tối thiểu để áp dụng voucher');
+      }
+
+      let discountAmount: number;
+      if (voucher.discountType === 'percentage') {
+        discountAmount = Math.min(
+          voucher.maxDiscount,
+          totalPrice * (voucher.discountValue / 100)
+        );
+      } else {
+        discountAmount = Math.min(voucher.discountValue, totalPrice);
+      }
+
+      finalPrice = totalPrice - discountAmount;
+      voucherData = {
+        voucherId: new Types.ObjectId(voucherId),
+        discountAmount
+      };
+    }
+
+    return { voucherData, finalPrice };
+  }
+
+  private async validateInventory(products: OrderProductDto[]) {
+    for (const item of products) {
+      const product = await this.productsService.findOne(item.productId);
+      const totalQuantity = product.inventory.reduce((sum, inv) => sum + inv.quantity, 0);
+      if (totalQuantity < item.quantity) {
+        throw new BadRequestException(`Sản phẩm ${product.name} không đủ số lượng trong kho`);
+      }
+    }
   }
 } 

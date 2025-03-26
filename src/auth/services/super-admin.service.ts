@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../../users/users.service';
-import { UserRole } from '../../users/schemas/user.schema';
+import { UserRole } from '../enums/role.enum';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -67,7 +67,8 @@ export class SuperAdminService implements OnModuleInit {
         email,
         password: hashedPassword,
         role: UserRole.SUPER_ADMIN,
-        name: 'Super Admin'
+        name: 'Super Admin',
+        phone: '' // Thêm trường phone
       });
 
       this.logger.debug('Super admin created successfully:', {

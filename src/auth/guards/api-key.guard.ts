@@ -13,13 +13,9 @@ export class ApiKeyGuard implements CanActivate {
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const handlerRoles = this.reflector.get<UserRole[]>('roles', context.getHandler());
-    const controllerRoles = this.reflector.get<UserRole[]>('roles', context.getClass());
-    const roles = handlerRoles || controllerRoles;
-
+    const roles = this.getRoles(context);
     const adminRoles = [UserRole.SUPER_ADMIN, UserRole.CONTENT_ADMIN, UserRole.PRODUCT_ADMIN];
     
-    // Nếu không phải admin role -> không cần API key
     if (!roles || !roles.some(role => adminRoles.includes(role))) {
       return true;
     }
@@ -28,17 +24,9 @@ export class ApiKeyGuard implements CanActivate {
     const apiKey = request.headers['x-api-key'];
     const validApiKey = this.configService.get<string>('API_KEY');
 
-    this.logger.debug('API Key validation:', {
-      receivedKey: apiKey,
-      validKey: validApiKey,
-      headers: request.headers,
-      url: request.url,
-      method: request.method
-    });
-    
-    if (!apiKey) {
-      this.logger.error('Missing API key in request headers');
-      throw new UnauthorizedException('API key không được tìm thấy');
+    if (!apiKey || typeof apiKey !== 'string') {
+      this.logger.error('Missing or invalid API key');
+      throw new UnauthorizedException('API key không hợp lệ');
     }
 
     if (!validApiKey) {
@@ -46,11 +34,17 @@ export class ApiKeyGuard implements CanActivate {
       throw new UnauthorizedException('API_KEY chưa được cấu hình');
     }
 
-    if (apiKey !== validApiKey) {
-      this.logger.error(`Invalid API key: ${apiKey}`);
-      throw new UnauthorizedException('API key không hợp lệ');
+    if (apiKey.length < 32) {
+      this.logger.error('Invalid API key length');
+      throw new UnauthorizedException('API key không đủ độ dài yêu cầu');
     }
 
     return true;
+  }
+
+  private getRoles(context: ExecutionContext): UserRole[] {
+    const handlerRoles = this.reflector.get<UserRole[]>('roles', context.getHandler());
+    const controllerRoles = this.reflector.get<UserRole[]>('roles', context.getClass());
+    return handlerRoles || controllerRoles;
   }
 } 

@@ -16,7 +16,7 @@ export function AdminRoute(
     ApiBearerAuth(),
     ApiSecurity('x-api-key'),
     UseGuards(JwtAuthGuard, ApiKeyGuard),
-    Roles(...roles),
+    Roles(roles),
     RequirePermissions(...permissions),
     ApiOperation({ summary }),
     ApiResponse({ status: 201, description: 'Thao tác thành công' }),

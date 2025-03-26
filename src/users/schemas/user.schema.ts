@@ -1,60 +1,78 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Schema as MongooseSchema } from 'mongoose';
-import { Permission } from '../../auth/constants/permissions';
-
-export enum UserRole {
-  SUPER_ADMIN = 'SUPER_ADMIN',
-  CONTENT_ADMIN = 'CONTENT_ADMIN',
-  PRODUCT_ADMIN = 'PRODUCT_ADMIN',
-  USER = 'USER'
-}
+import { UserRole } from '../../auth/enums/role.enum';
+import { BaseSchema } from '../../common/schemas/base.schema';
 
 export type UserDocument = User & Document;
 
-@Schema({ timestamps: true, collection: 'users' })
-export class User {
+@Schema()
+class Address {
   @Prop({ required: true })
-  name: string;
+  addressId: string;
+
+  @Prop({ required: true })
+  addressLine: string;
+
+  @Prop({ required: true })
+  city: string;
+
+  @Prop({ required: true })
+  state: string;
+
+  @Prop({ required: true })
+  country: string;
 
   @Prop()
-  dob: Date;
+  postalCode?: string;
+
+  @Prop({ required: true, default: false })
+  isDefault: boolean;
+}
+
+@Schema({
+  timestamps: true,
+  collection: 'users',
+  suppressReservedKeysWarning: true
+})
+export class User extends BaseSchema {
+  _id: MongooseSchema.Types.ObjectId;
+
+  @Prop({ required: true })
+  name: string;
 
   @Prop({ required: true, unique: true })
   email: string;
 
   @Prop({ required: true })
+  phone: string;
+
+  @Prop({ required: true, select: false })
   password: string;
 
   @Prop()
-  phoneNumber: string;
+  googleId?: string;
 
-  @Prop()
-  gender: string;
-
-  @Prop()
-  oauthProvider: string;
-
-  @Prop({ default: false })
-  isVerified: boolean;
-
-  @Prop({ type: [MongooseSchema.Types.ObjectId], ref: 'Address' })
-  addressIds: MongooseSchema.Types.ObjectId[];
+  @Prop({ type: [{ type: Address }], default: [] })
+  addresses: Address[];
 
   @Prop({ 
-    type: String, 
+    type: String,
     enum: UserRole,
-    default: UserRole.USER 
+    default: UserRole.USER
   })
   role: UserRole;
 
-  @Prop({ type: [String], default: [] })
-  permissions: Permission[];
-
-  @Prop({ nullable: true })
-  refreshToken?: string;
+  @Prop({ type: [{ type: MongooseSchema.Types.ObjectId, ref: 'Product' }] })
+  wishlist: MongooseSchema.Types.ObjectId[];
 
   @Prop({ default: true })
   isActive: boolean;
+
+  @Prop({ type: [String], default: [] })
+  permissions: string[];
+
+  @Prop({ select: false })
+  refreshToken?: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

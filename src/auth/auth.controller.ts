@@ -7,7 +7,7 @@ import { GetCurrentUser } from './decorators/get-current-user.decorator';
 import { RefreshTokenGuard } from './guards/refresh-token.guard';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
-import { UserRole } from '../users/schemas/user.schema';
+import { UserRole } from './enums/role.enum';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { JwtPayload } from 'jsonwebtoken';
 import { CreateAdminDto } from './dto/create-admin.dto';
@@ -18,11 +18,15 @@ import { SuperAdminCreationGuard } from './guards/super-admin-creation.guard';
 import { ApiKeyGuard } from './guards/api-key.guard';
 import { AdminService } from '../admin/admin.service';
 import { Roles } from './decorators/roles.decorator';
+import { Throttle } from '@nestjs/throttler';
+import { Logger } from '@nestjs/common';
 
 @ApiTags('auth')
 @ApiBearerAuth()
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private authService: AuthService,
     private usersService: UsersService,
@@ -61,13 +65,12 @@ export class AuthController {
   }
 
   @Post('admin/login')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.CONTENT_ADMIN, UserRole.PRODUCT_ADMIN)
-  @UseGuards(ApiKeyGuard)
-  @ApiOperation({ summary: 'Đăng nhập tài khoản admin' })
-  @ApiHeader({
-    name: 'x-api-key',
-    description: 'API key for admin authentication'
+  @ApiKeyAuth({ 
+    limit: 5, 
+    ttlSeconds: 60,
+    roles: [UserRole.SUPER_ADMIN, UserRole.CONTENT_ADMIN, UserRole.PRODUCT_ADMIN]
   })
+  @ApiOperation({ summary: 'Đăng nhập tài khoản admin' })
   @ApiBody({
     type: LoginDto,
     description: 'Thông tin đăng nhập admin',
@@ -93,7 +96,12 @@ export class AuthController {
     }
   })
   async adminLogin(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto, true);
+    try {
+      return await this.authService.login(loginDto, true);
+    } catch (error) {
+      this.logger.error(`Lỗi đăng nhập admin: ${error.message}`, error.stack);
+      throw error;
+    }
   }
 
   @Post('login')

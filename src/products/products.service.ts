@@ -1,203 +1,137 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Product, ProductDocument } from './schemas/product.schema';
 import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
-import { Review, ReviewDocument } from './schemas/review.schema';
+import { ProductNotFoundException, InsufficientStockException } from '../common/exceptions';
+import { SearchProductDto } from './dto/search-product.dto';
 
 @Injectable()
 export class ProductsService {
+  private readonly logger = new Logger(ProductsService.name);
+
   constructor(
-    @InjectModel(Product.name) private productModel: Model<ProductDocument>,
-    @InjectModel(Review.name) private reviewModel: Model<ReviewDocument>
+    @InjectModel(Product.name) private productModel: Model<ProductDocument>
   ) {}
 
   async create(createProductDto: CreateProductDto): Promise<ProductDocument> {
-    const newProduct = new this.productModel(createProductDto);
-    return newProduct.save();
+    const createdProduct = new this.productModel(createProductDto);
+    return createdProduct.save();
   }
 
-  async findAll(query: any = {}): Promise<ProductDocument[]> {
-    const { limit = 10, page = 1, sort = 'createdAt', order = 'desc', ...filters } = query;
-    
-    // Xử lý các filter
-    const filterQuery = {};
-    if (filters.name) {
-      filterQuery['name'] = { $regex: filters.name, $options: 'i' };
-    }
-    if (filters.categories) {
-      filterQuery['categories'] = { $in: Array.isArray(filters.categories) ? filters.categories : [filters.categories] };
-    }
-    if (filters.minPrice) {
-      filterQuery['price'] = { ...filterQuery['price'] || {}, $gte: Number(filters.minPrice) };
-    }
-    if (filters.maxPrice) {
-      filterQuery['price'] = { ...filterQuery['price'] || {}, $lte: Number(filters.maxPrice) };
-    }
-    
-    // Mặc định chỉ hiển thị sản phẩm active
-    if (filters.showInactive !== 'true') {
-      filterQuery['isActive'] = true;
-    }
-    
-    const sortOptions = {};
-    sortOptions[sort] = order === 'asc' ? 1 : -1;
-    
-    return this.productModel
-      .find(filterQuery)
-      .populate('brandId', 'name image')
-      .sort(sortOptions)
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .exec();
+  async findAll(page: number = 1, limit: number = 10): Promise<{
+    items: ProductDocument[];
+    total: number;
+    page: number;
+    totalPages: number;
+  }> {
+    const skip = (page - 1) * limit;
+    const [items, total] = await Promise.all([
+      this.productModel.find().skip(skip).limit(limit).exec(),
+      this.productModel.countDocuments()
+    ]);
+
+    return {
+      items,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit)
+    };
   }
 
   async findOne(id: string): Promise<ProductDocument> {
     const product = await this.productModel.findById(id);
     if (!product) {
-      throw new NotFoundException('Sản phẩm không tồn tại');
+      throw new ProductNotFoundException(id);
     }
     return product;
   }
 
-  async update(id: string, updateProductDto: UpdateProductDto): Promise<ProductDocument> {
-    const updatedProduct = await this.productModel.findByIdAndUpdate(
-      id,
-      updateProductDto,
-      { new: true }
-    );
-    
+  async update(id: string, updateProductDto: Partial<CreateProductDto>): Promise<ProductDocument> {
+    const updatedProduct = await this.productModel
+      .findByIdAndUpdate(id, updateProductDto, { new: true });
     if (!updatedProduct) {
-      throw new NotFoundException('Sản phẩm không tồn tại');
+      throw new ProductNotFoundException(id);
     }
-    
     return updatedProduct;
   }
 
-  async remove(id: string): Promise<{ message: string }> {
-    const result = await this.productModel.findByIdAndDelete(id);
-    
-    if (!result) {
-      throw new NotFoundException('Sản phẩm không tồn tại');
+  async remove(id: string): Promise<ProductDocument> {
+    const deletedProduct = await this.productModel.findByIdAndDelete(id);
+    if (!deletedProduct) {
+      throw new ProductNotFoundException(id);
     }
-    
-    return { message: 'Xóa sản phẩm thành công' };
+    return deletedProduct;
   }
 
-  async toggleActive(id: string): Promise<ProductDocument> {
-    const product = await this.productModel.findById(id);
+  async findByCategory(categoryId: string): Promise<ProductDocument[]> {
+    return this.productModel.find({ categoryIds: categoryId }).exec();
+  }
+
+  async findByBrand(brandId: string): Promise<ProductDocument[]> {
+    return this.productModel.find({ brandId }).exec();
+  }
+
+  async updateStock(id: string, quantity: number): Promise<ProductDocument> {
+    this.logger.debug(`Cập nhật số lượng tồn kho cho sản phẩm ${id}: ${quantity}`);
     
+    const product = await this.productModel.findById(id);
     if (!product) {
-      throw new NotFoundException('Sản phẩm không tồn tại');
+      this.logger.error(`Không tìm thấy sản phẩm với ID ${id}`);
+      throw new ProductNotFoundException(id);
     }
     
-    product.isActive = !product.isActive;
+    // Cập nhật số lượng tồn kho cho tất cả chi nhánh
+    product.inventory = product.inventory.map(inv => ({
+      ...inv,
+      quantity: quantity
+    }));
+
+    // Tự động cập nhật trạng thái
+    product.status = quantity > 0 ? 'active' : 'out_of_stock';
+    
     return product.save();
   }
 
-  async countProducts(filters: any = {}): Promise<number> {
-    const filterQuery = {};
-    if (filters.name) {
-      filterQuery['name'] = { $regex: filters.name, $options: 'i' };
+  async updatePrice(id: string, price: number): Promise<ProductDocument> {
+    const product = await this.productModel.findById(id);
+    if (!product) {
+      throw new ProductNotFoundException(id);
     }
-    if (filters.categories) {
-      filterQuery['categories'] = { $in: Array.isArray(filters.categories) ? filters.categories : [filters.categories] };
-    }
-    
-    if (filters.showInactive !== 'true') {
-      filterQuery['isActive'] = true;
-    }
-    
-    return this.productModel.countDocuments(filterQuery);
+
+    product.price = price;
+    return product.save();
   }
 
-  /**
-   * Cập nhật đánh giá trung bình và số lượng đánh giá của sản phẩm
-   */
-  async updateRating(productId: string) {
-    const reviews = await this.reviewModel.find({ productId });
-    
-    const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
-    const averageRating = reviews.length > 0 ? totalRating / reviews.length : 0;
-    
-    await this.productModel.findByIdAndUpdate(productId, {
-      rating: averageRating,
-      reviewCount: reviews.length
-    });
-  }
+  async searchProducts(searchDto: SearchProductDto): Promise<ProductDocument[]> {
+    const query: any = {};
 
-  async search(options: {
-    keyword?: string;
-    skinType?: string;
-    productType?: string;
-    brand?: string;
-    minPrice?: number;
-    maxPrice?: number;
-    page?: number;
-    limit?: number;
-  }): Promise<any> {
-    const {
-      keyword,
-      skinType,
-      productType,
-      brand,
-      minPrice,
-      maxPrice,
-      page = 1,
-      limit = 10
-    } = options;
-
-    const query: any = { isActive: true };
-
-    if (keyword) {
+    if (searchDto.keyword) {
       query.$or = [
-        { name: { $regex: keyword, $options: 'i' } },
-        { description: { $regex: keyword, $options: 'i' } }
+        { name: { $regex: searchDto.keyword, $options: 'i' } },
+        { 'description.short': { $regex: searchDto.keyword, $options: 'i' } },
+        { tags: { $in: [new RegExp(searchDto.keyword, 'i')] } }
       ];
     }
 
-    if (skinType) {
-      query.skinType = skinType;
+    if (searchDto.categoryId) {
+      query.categoryIds = searchDto.categoryId;
     }
 
-    if (productType) {
-      query.productType = productType;
+    if (searchDto.brandId) {
+      query.brandId = searchDto.brandId;
     }
 
-    if (brand) {
-      query.brand = brand;
-    }
-
-    if (minPrice !== undefined || maxPrice !== undefined) {
+    if (searchDto.minPrice !== undefined || searchDto.maxPrice !== undefined) {
       query.price = {};
-      if (minPrice !== undefined) {
-        query.price.$gte = minPrice;
+      if (searchDto.minPrice !== undefined) {
+        query.price.$gte = searchDto.minPrice;
       }
-      if (maxPrice !== undefined) {
-        query.price.$lte = maxPrice;
+      if (searchDto.maxPrice !== undefined) {
+        query.price.$lte = searchDto.maxPrice;
       }
     }
 
-    const skip = (page - 1) * limit;
-    
-    const [products, total] = await Promise.all([
-      this.productModel
-        .find(query)
-        .skip(skip)
-        .limit(limit)
-        .sort({ createdAt: -1 }),
-      this.productModel.countDocuments(query)
-    ]);
-
-    return {
-      data: products,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit)
-      }
-    };
+    return this.productModel.find(query).exec();
   }
 } 

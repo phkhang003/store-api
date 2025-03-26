@@ -1,10 +1,9 @@
-import { UserRole } from '../../users/schemas/user.schema';
+import { UserRole } from '../enums/role.enum';
 import { Permission } from '../constants/permissions';
 
 export interface JwtPayload {
   sub: string;
   email: string;
-  role: UserRole;
-  permissions: Permission[];
-  refreshToken?: string;
+  role: string;
+  permissions?: string[];
 } 

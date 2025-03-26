@@ -1,36 +1,26 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Brand, BrandDocument } from './schemas/brand.schema';
+import { Brand } from './schemas/brand.schema';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
 
 @Injectable()
 export class BrandsService {
   constructor(
-    @InjectModel(Brand.name) private brandModel: Model<BrandDocument>
+    @InjectModel(Brand.name) private brandModel: Model<Brand>
   ) {}
 
   async create(createBrandDto: CreateBrandDto): Promise<Brand> {
-    const existingBrand = await this.brandModel.findOne({ name: createBrandDto.name });
-    if (existingBrand) {
-      throw new BadRequestException('Thương hiệu đã tồn tại');
-    }
     const brand = new this.brandModel(createBrandDto);
     return brand.save();
   }
 
-  async findAll(query: any = {}): Promise<Brand[]> {
-    const { search, limit = 10, page = 1 } = query;
-    const filter: any = {};
-    
-    if (search) {
-      filter.name = { $regex: search, $options: 'i' };
-    }
-
+  async findAll(page: number = 1, limit: number = 10): Promise<Brand[]> {
+    const skip = (page - 1) * limit;
     return this.brandModel
-      .find(filter)
-      .skip((page - 1) * limit)
+      .find()
+      .skip(skip)
       .limit(limit)
       .exec();
   }
@@ -38,24 +28,36 @@ export class BrandsService {
   async findOne(id: string): Promise<Brand> {
     const brand = await this.brandModel.findById(id);
     if (!brand) {
-      throw new NotFoundException('Thương hiệu không tồn tại');
+      throw new NotFoundException(`Thương hiệu với ID ${id} không tồn tại`);
     }
     return brand;
   }
 
   async update(id: string, updateBrandDto: UpdateBrandDto): Promise<Brand> {
-    const brand = await this.brandModel.findByIdAndUpdate(id, updateBrandDto, { new: true });
-    if (!brand) {
+    const updatedBrand = await this.brandModel
+      .findByIdAndUpdate(id, updateBrandDto, { new: true })
+      .exec();
+    
+    if (!updatedBrand) {
       throw new NotFoundException('Thương hiệu không tồn tại');
     }
-    return brand;
+    return updatedBrand;
   }
 
   async remove(id: string): Promise<Brand> {
-    const brand = await this.brandModel.findByIdAndDelete(id);
-    if (!brand) {
+    const deletedBrand = await this.brandModel.findByIdAndDelete(id);
+    if (!deletedBrand) {
       throw new NotFoundException('Thương hiệu không tồn tại');
     }
-    return brand;
+    return deletedBrand;
   }
-}
+
+  async search(keyword: string): Promise<Brand[]> {
+    return this.brandModel
+      .find({
+        $text: { $search: keyword }
+      })
+      .sort({ score: { $meta: 'textScore' } })
+      .exec();
+  }
+} 

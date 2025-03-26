@@ -15,3 +15,19 @@ export const validateEnvConfig = (config: Record<string, unknown>) => {
 
   return config;
 };
+
+import { IsString, IsNumber } from 'class-validator';
+
+export class EnvironmentVariables {
+  @IsString()
+  JWT_SECRET: string;
+
+  @IsString()
+  JWT_REFRESH_SECRET: string;
+
+  @IsString()
+  API_KEY: string;
+
+  @IsNumber()
+  PORT: number;
+}

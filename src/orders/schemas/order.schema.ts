@@ -1,136 +1,90 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Schema as MongooseSchema } from 'mongoose';
-import { User } from '../../users/schemas/user.schema';
-import { OrderStatus, PaymentStatus } from '../enums/order.enum';
+import { BaseSchema } from '../../common/schemas/base.schema';
 
-export type OrderDocument = Order & Document;
+@Schema()
+export class ProductOptions {
+  @Prop()
+  shade?: string;
 
-export enum PaymentMethod {
-  COD = 'cod',
-  BANK_TRANSFER = 'bank_transfer',
-  CREDIT_CARD = 'credit_card',
-  MOMO = 'momo',
-  ZALOPAY = 'zalopay',
-  VNPAY = 'vnpay'
-}
-
-@Schema({ timestamps: true })
-export class OrderItem {
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Product', required: true })
-  productId: string;
-
-  @Prop({ required: true })
-  quantity: number;
-
-  @Prop({ required: true })
-  price: number;
-
-  @Prop({ required: true })
-  name: string;
+  @Prop()
+  size?: string;
 }
 
 @Schema()
-export class ShippingAddress {
-  @Prop({ required: true })
-  fullName: string;
+export class OrderProduct {
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Product', required: true })
+  productId: MongooseSchema.Types.ObjectId;
 
-  @Prop({ required: true })
-  phone: string;
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'ProductVariant' })
+  variantId?: MongooseSchema.Types.ObjectId;
 
+  @Prop({ type: ProductOptions })
+  options: ProductOptions;
+
+  @Prop({ required: true, min: 1 })
+  quantity: number;
+
+  @Prop({ required: true, min: 0 })
+  price: number;
+}
+
+@Schema()
+export class VoucherInfo {
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Voucher', required: true })
+  voucherId: MongooseSchema.Types.ObjectId;
+
+  @Prop({ required: true, min: 0 })
+  discountAmount: number;
+}
+
+@Schema()
+export class ShippingInfo {
   @Prop({ required: true })
   address: string;
 
   @Prop({ required: true })
-  city: string;
-
-  @Prop({ required: true })
-  district: string;
-
-  @Prop()
-  ward: string;
-
-  @Prop()
-  zipCode: string;
+  contact: string;
 }
 
-@Schema({ timestamps: true })
-export class Order {
+@Schema({
+  timestamps: true,
+  suppressReservedKeysWarning: true
+})
+export class Order extends BaseSchema {
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User', required: true })
-  userId: User;
+  userId: MongooseSchema.Types.ObjectId;
 
-  @Prop({ type: MongooseSchema.Types.Mixed, required: true })
-  items: {
-    productId: string;
-    quantity: number;
-    price: number;
-    name: string;
-    extraAttributes: Record<string, any>;
-  }[];
+  @Prop({ type: [OrderProduct], required: true })
+  products: OrderProduct[];
 
-  @Prop({ required: true })
+  @Prop({ required: true, min: 0 })
   totalPrice: number;
 
-  @Prop({ type: String, enum: PaymentMethod, required: true })
-  paymentMethod: PaymentMethod;
+  @Prop({ type: VoucherInfo })
+  voucher?: VoucherInfo;
 
-  @Prop({ type: String, enum: PaymentStatus, default: PaymentStatus.PENDING })
-  paymentStatus: PaymentStatus;
+  @Prop({ required: true, min: 0 })
+  finalPrice: number;
 
-  @Prop({ type: MongooseSchema.Types.Mixed, required: true })
-  shippingAddress: {
-    fullName: string;
-    phone: string;
-    street: string;
-    ward: string;
-    district: string;
-    city: string;
-    zipCode?: string;
-  };
+  @Prop({ 
+    required: true,
+    enum: ['pending', 'shipped', 'completed', 'cancelled'],
+    default: 'pending'
+  })
+  status: string;
 
-  @Prop({ type: String, enum: OrderStatus, default: OrderStatus.PENDING })
-  orderStatus: OrderStatus;
+  @Prop({ type: ShippingInfo, required: true })
+  shippingInfo: ShippingInfo;
 
-  @Prop()
-  trackingNumber: string;
-
-  @Prop({ type: Date, default: Date.now })
-  orderedAt: Date;
-
-  @Prop()
-  deliveredAt: Date;
-
-  @Prop()
-  paymentId?: string;
-
-  @Prop()
-  couponCode?: string;
-
-  @Prop()
-  discount?: number;
-
-  @Prop()
-  notes?: string;
-
-  @Prop()
-  isGift?: boolean;
-
-  @Prop()
-  giftMessage?: string;
-
-  @Prop()
-  cancelReason?: string;
-
-  @Prop()
-  cancelledAt?: Date;
-
-  @Prop()
-  returnReason?: string;
-
-  @Prop({ type: [String] })
-  returnImages?: string[];
-
-  @Prop()
-  returnRequestedAt?: Date;
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Branch', required: true })
+  branchId: MongooseSchema.Types.ObjectId;
 }
 
-export const OrderSchema = SchemaFactory.createForClass(Order); 
+export type OrderDocument = Order & Document;
+export const OrderSchema = SchemaFactory.createForClass(Order);
+
+// Tạo indexes
+OrderSchema.index({ userId: 1 });
+OrderSchema.index({ status: 1 });
+OrderSchema.index({ createdAt: -1 }); 

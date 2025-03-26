@@ -1,4 +1,4 @@
-import { UserRole } from '../schemas/user.schema';
+import { UserRole } from '../../auth/enums/role.enum';
 import { Permission } from '../../auth/constants/permissions';
 
 export interface UserResponse {

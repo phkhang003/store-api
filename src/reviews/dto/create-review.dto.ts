@@ -1,42 +1,70 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNumber, IsArray, IsOptional, Min, Max } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsString,
+  IsNumber,
+  IsMongoId,
+  IsOptional,
+  IsArray,
+  ValidateNested,
+  Min,
+  Max,
+  IsUrl,
+  ArrayMinSize,
+  MaxLength
+} from 'class-validator';
+
+class ReviewImageDto {
+  @ApiProperty({ example: 'https://example.com/image.jpg' })
+  @IsUrl()
+  url: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  alt?: string;
+}
 
 export class CreateReviewDto {
-  @ApiProperty({
-    description: 'Đánh giá sao (1-5)',
-    example: 5,
+  @ApiProperty()
+  @IsMongoId()
+  productId: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsMongoId()
+  variantId?: string;
+
+  @ApiProperty({ required: true })
+  @IsMongoId()
+  orderId: string;
+
+  @ApiProperty({ 
+    description: 'Đánh giá từ 1-5 sao',
     minimum: 1,
-    maximum: 5
+    maximum: 5 
   })
   @IsNumber()
   @Min(1)
   @Max(5)
   rating: number;
 
-  @ApiProperty({
-    description: 'Tiêu đề đánh giá',
-    example: 'Sản phẩm tuyệt vời',
-    required: false
-  })
-  @IsString()
-  @IsOptional()
-  title?: string;
-
-  @ApiProperty({
+  @ApiProperty({ 
     description: 'Nội dung đánh giá',
-    example: 'Sản phẩm rất tốt, da mặt mình cải thiện rõ rệt sau 2 tuần sử dụng'
+    maxLength: 1000 
   })
   @IsString()
-  comment: string;
+  @MaxLength(1000)
+  content: string;
 
-  @ApiProperty({
-    description: 'Hình ảnh đánh giá',
-    example: ['review1.jpg', 'review2.jpg'],
-    type: [String],
-    required: false
+  @ApiProperty({ 
+    type: [ReviewImageDto],
+    required: false 
   })
-  @IsArray()
-  @IsString({ each: true })
   @IsOptional()
-  images?: string[];
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ReviewImageDto)
+  @ArrayMinSize(1)
+  images?: ReviewImageDto[];
 } 

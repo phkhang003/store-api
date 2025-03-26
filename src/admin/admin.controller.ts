@@ -6,7 +6,7 @@ import { ApiKeyGuard } from '../auth/guards/api-key.guard';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { Permission } from '../auth/constants/permissions';
 import { CreateAdminDto } from './dto/create-admin.dto';
-import { UserRole } from '../users/schemas/user.schema';
+import { UserRole } from '../auth/enums/role.enum';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { AdminRoute } from '../auth/decorators/admin-route.decorator';
 
@@ -14,7 +14,7 @@ import { AdminRoute } from '../auth/decorators/admin-route.decorator';
 @ApiBearerAuth()
 @ApiSecurity('x-api-key')
 @UseGuards(JwtAuthGuard, ApiKeyGuard)
-@Roles(UserRole.SUPER_ADMIN)
+@Roles([UserRole.SUPER_ADMIN])
 @Controller('admin')
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
@@ -40,7 +40,7 @@ export class AdminController {
           name: 'Content Admin',
           email: 'content@example.com',
           password: 'password123',
-          role: 'CONTENT_ADMIN'
+          role: UserRole.CONTENT_ADMIN
         }
       },
       example2: {
@@ -49,7 +49,7 @@ export class AdminController {
           name: 'Product Admin',
           email: 'product@example.com',
           password: 'password123',
-          role: 'PRODUCT_ADMIN'
+          role: UserRole.PRODUCT_ADMIN
         }
       }
     }

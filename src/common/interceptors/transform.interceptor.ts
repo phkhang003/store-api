@@ -6,20 +6,16 @@ export interface Response<T> {
   data: T;
   statusCode: number;
   message: string;
-  timestamp: string;
 }
 
 @Injectable()
 export class TransformInterceptor<T> implements NestInterceptor<T, Response<T>> {
   intercept(context: ExecutionContext, next: CallHandler): Observable<Response<T>> {
-    const response = context.switchToHttp().getResponse();
-    
     return next.handle().pipe(
       map(data => ({
         data,
-        statusCode: response.statusCode,
-        message: 'Success',
-        timestamp: new Date().toISOString()
+        statusCode: context.switchToHttp().getResponse().statusCode,
+        message: 'Thành công'
       }))
     );
   }

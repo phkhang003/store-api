@@ -1,38 +1,26 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsEnum, IsOptional, IsNotEmpty } from 'class-validator';
-import { PaymentMethod } from '../enums/payment.enum';
+import { IsEnum, IsMongoId, IsNumber, IsOptional, Min } from 'class-validator';
+import { PaymentMethod } from '../schemas/payment.schema';
 
 export class CreatePaymentDto {
-  @ApiProperty({
-    description: 'ID của đơn hàng cần thanh toán',
-    example: '60d21b4667d0d8992e610c85'
-  })
-  @IsString()
-  @IsNotEmpty()
+  @ApiProperty()
+  @IsMongoId()
   orderId: string;
 
-  @ApiProperty({
-    description: 'ID của người dùng thực hiện thanh toán',
-    example: '60d21b4667d0d8992e610c80'
-  })
-  @IsString()
-  @IsNotEmpty()
+  @ApiProperty()
+  @IsMongoId()
   userId: string;
 
-  @ApiProperty({
-    description: 'Phương thức thanh toán',
-    enum: PaymentMethod,
-    example: PaymentMethod.MOMO
-  })
+  @ApiProperty({ enum: PaymentMethod })
   @IsEnum(PaymentMethod)
-  @IsNotEmpty()
-  paymentMethod: PaymentMethod;
+  method: PaymentMethod;
 
-  @ApiProperty({
-    description: 'URL trả về sau khi thanh toán',
-    example: 'https://example.com/payment/callback'
-  })
-  @IsString()
-  @IsNotEmpty()
-  returnUrl: string;
-} 
+  @ApiProperty()
+  @IsNumber()
+  @Min(1000)
+  amount: number;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  paymentDetails?: Record<string, any>;
+}

@@ -58,43 +58,35 @@ export class RedisThrottleStorage implements ThrottlerStorage, OnModuleDestroy {
     }
   }
 
-  async increment(
-    key: string, 
-    ttl: number,
-    limit: number,
-    blockDuration: number,
-    throttlerName: string
-  ): Promise<StorageRecord> {
-    if (!this.isRedisConnected) {
-      return {
-        totalHits: 1,
-        timeToExpire: ttl,
-        isBlocked: false,
-        timeToBlockExpire: blockDuration
-      };
-    }
-
+  async increment(key: string, ttl: number): Promise<StorageRecord> {
     try {
-      const count = await this.redis.incr(key);
-      if (count === 1) {
-        await this.redis.expire(key, ttl);
-      }
-      const ttlRemaining = await this.redis.ttl(key);
+      const multi = this.redis.multi();
+      multi.incr(key);
+      multi.expire(key, ttl);
+      const results = await multi.exec();
       
       return {
-        totalHits: count,
-        timeToExpire: ttlRemaining,
-        isBlocked: count > limit,
-        timeToBlockExpire: blockDuration
-      };
-    } catch (error) {
-      this.logger.error(`Redis increment error: ${error.message}`);
-      return {
-        totalHits: 1,
-        timeToExpire: ttl,
+        totalHits: results[0][1] as number,
+        timeToExpire: ttl * 1000,
         isBlocked: false,
-        timeToBlockExpire: blockDuration
+        timeToBlockExpire: 0
       };
+    } catch (err) {
+      this.logger.error(`Redis increment error: ${err.message}`);
+      return {
+        totalHits: 0,
+        timeToExpire: 0,
+        isBlocked: false,
+        timeToBlockExpire: 0
+      };
+    }
+  }
+
+  async reset(key: string): Promise<void> {
+    try {
+      await this.redis.del(key);
+    } catch (err) {
+      this.logger.error(`Redis reset error: ${err.message}`);
     }
   }
 

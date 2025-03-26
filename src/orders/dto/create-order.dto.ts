@@ -1,77 +1,90 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
-import { OrderStatus, PaymentStatus } from '../enums/order.enum';
-import { OrderItemDto } from './order-item.dto';
-import { ShippingAddressDto } from './shipping-address.dto';
+import { 
+  IsString, 
+  IsNumber, 
+  IsMongoId, 
+  IsOptional,
+  ValidateNested,
+  Min,
+  IsArray,
+  ArrayMinSize,
+  IsEnum,
+  IsEmail
+} from 'class-validator';
+import { PaymentMethod } from '../../payments/schemas/payment.schema';
+
+export class ProductOptionsDto {
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  shade?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  size?: string;
+}
+
+export class OrderProductDto {
+  @ApiProperty()
+  @IsMongoId()
+  productId: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsMongoId()
+  variantId?: string;
+
+  @ApiProperty({ type: ProductOptionsDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ProductOptionsDto)
+  options?: ProductOptionsDto;
+
+  @ApiProperty({ minimum: 1 })
+  @IsNumber()
+  @Min(1)
+  quantity: number;
+}
+
+export class ShippingInfoDto {
+  @ApiProperty()
+  @IsString()
+  address: string;
+
+  @ApiProperty()
+  @IsString()
+  contact: string;
+}
 
 export class CreateOrderDto {
-  @ApiProperty({
-    description: 'Danh sách sản phẩm',
-    type: [OrderItemDto]
-  })
+  @ApiProperty({ type: [OrderProductDto] })
   @IsArray()
+  @ArrayMinSize(1)
   @ValidateNested({ each: true })
-  @Type(() => OrderItemDto)
-  items: OrderItemDto[];
+  @Type(() => OrderProductDto)
+  products: OrderProductDto[];
 
-  @ApiProperty({
-    description: 'Địa chỉ giao hàng',
-    type: ShippingAddressDto
-  })
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsMongoId()
+  voucherId?: string;
+
+  @ApiProperty()
   @ValidateNested()
-  @Type(() => ShippingAddressDto)
-  shippingAddress: ShippingAddressDto;
+  @Type(() => ShippingInfoDto)
+  shippingInfo: ShippingInfoDto;
 
-  @ApiProperty({
-    description: 'Số điện thoại nhận hàng',
-    example: '0123456789'
-  })
-  @IsString()
-  @IsNotEmpty()
-  phoneNumber: string;
+  @ApiProperty()
+  @IsMongoId()
+  branchId: string;
 
-  @ApiProperty({
-    description: 'Phương thức thanh toán',
-    example: 'cod'
-  })
-  @IsString()
-  @IsNotEmpty()
-  paymentMethod: string;
+  @ApiProperty()
+  @IsEmail()
+  email: string;
 
-  @ApiProperty({
-    description: 'Mã giảm giá',
-    example: 'WELCOME10',
-    required: false
-  })
-  @IsString()
-  @IsOptional()
-  couponCode?: string;
-
-  @ApiProperty({
-    description: 'Ghi chú đơn hàng',
-    example: 'Giao hàng trong giờ hành chính',
-    required: false
-  })
-  @IsString()
-  @IsOptional()
-  notes?: string;
-
-  @ApiProperty({
-    description: 'Đơn hàng là quà tặng',
-    example: true,
-    required: false
-  })
-  @IsBoolean()
-  @IsOptional()
-  isGift?: boolean;
-
-  @ApiProperty({
-    description: 'Lời nhắn quà tặng',
-    example: 'Chúc mừng sinh nhật!',
-    required: false
-  })
-  @IsString()
-  @IsOptional()
-  giftMessage?: string;
+  @ApiProperty({ enum: PaymentMethod })
+  @IsEnum(PaymentMethod)
+  paymentMethod: PaymentMethod;
 } 

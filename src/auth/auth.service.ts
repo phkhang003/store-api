@@ -4,7 +4,7 @@ import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import { UserRole } from '../users/schemas/user.schema';
+import { UserRole } from './enums/role.enum';
 import { UserDocument } from '../users/schemas/user.schema';
 import { Permission, Role, RolePermissions } from './constants/permissions';
 import { ConfigService } from '@nestjs/config';
@@ -27,6 +27,7 @@ export class AuthService {
     const userPermissions = RolePermissions[UserRole.USER];
     const newUser = await this.usersService.create({
       ...registerDto,
+      phone: '',
       password: hashedPassword,
       role: UserRole.USER,
       permissions: userPermissions
@@ -40,42 +41,27 @@ export class AuthService {
   async login(loginDto: LoginDto, isAdminLogin: boolean = false) {
     const logger = new Logger('AuthService');
     
-    logger.debug('Login attempt:', {
-      dto: loginDto,
+    logger.debug('Login attempt for:', {
+      email: loginDto.email,
       isAdminLogin
     });
 
     const user = await this.usersService.findByEmail(loginDto.email);
     
-    logger.debug('Found user:', {
-      id: user?._id,
-      email: user?.email,
-      role: user?.role,
-      hashedPassword: user?.password
-    });
-
     if (!user) {
       throw new UnauthorizedException('Email không tồn tại');
     }
 
     const isPasswordValid = await bcrypt.compare(loginDto.password, user.password);
     
-    logger.debug('Password validation:', {
-      isValid: isPasswordValid,
-      providedPassword: loginDto.password,
-      hashedPassword: user.password
-    });
-
     if (!isPasswordValid) {
       throw new UnauthorizedException('Mật khẩu không đúng');
     }
 
     if (isAdminLogin) {
       await this.validateAdminRole(user, null);
-    } else {
-      if (user.role !== UserRole.USER) {
-        throw new UnauthorizedException('Vui lòng sử dụng trang đăng nhập admin');
-      }
+    } else if (user.role !== UserRole.USER) {
+      throw new UnauthorizedException('Vui lòng sử dụng trang đăng nhập admin');
     }
 
     const tokens = await this.generateTokens(user);
@@ -93,22 +79,30 @@ export class AuthService {
   }
 
   async refreshTokens(userId: string, refreshToken: string) {
-    const user = await this.usersService.findOne(userId);
-    if (!user || !user.refreshToken) {
-      throw new UnauthorizedException('Access Denied');
-    }
+    try {
+      const user = await this.usersService.findOne(userId);
+      if (!user || !user.refreshToken) {
+        throw new UnauthorizedException('Access Denied');
+      }
 
-    const refreshTokenMatches = await bcrypt.compare(
-      refreshToken,
-      user.refreshToken
-    );
-    if (!refreshTokenMatches) {
-      throw new UnauthorizedException('Access Denied');
-    }
+      const refreshTokenMatches = await bcrypt.compare(
+        refreshToken,
+        user.refreshToken
+      );
 
-    const tokens = await this.generateTokens(user);
-    await this.updateRefreshToken(user._id.toString(), tokens.refresh_token);
-    return tokens;
+      if (!refreshTokenMatches) {
+        throw new UnauthorizedException('Access Denied');
+      }
+
+      const tokens = await this.generateTokens(user);
+      await this.updateRefreshToken(user._id.toString(), tokens.refresh_token);
+      return tokens;
+    } catch (error) {
+      if (error.name === 'TokenExpiredError') {
+        throw new UnauthorizedException('Refresh token đã hết hạn');
+      }
+      throw error;
+    }
   }
 
   private async generateTokens(user: UserDocument) {
@@ -148,10 +142,7 @@ export class AuthService {
       throw new UnauthorizedException('User không tồn tại');
     }
 
-    logger.debug('Validating admin role:', {
-      userRole: user.role,
-      requiredRole: requiredRole
-    });
+    logger.debug(`Validating admin role: ${user.role}`);
 
     const adminRoles = [
       UserRole.SUPER_ADMIN,

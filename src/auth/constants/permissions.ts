@@ -1,4 +1,4 @@
-import { UserRole } from '../../users/schemas/user.schema';
+import { UserRole } from '../enums/role.enum';
 
 export enum Permission {
   // Product permissions

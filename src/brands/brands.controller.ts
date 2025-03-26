@@ -1,50 +1,43 @@
-import { Controller, Get, Post, Body, Put, Param, Delete, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiSecurity, ApiParam, ApiBody } from '@nestjs/swagger';
-import { BrandsService } from './brands.service';
-import { CreateBrandDto } from './dto/create-brand.dto';
-import { UpdateBrandDto } from './dto/update-brand.dto';
+import { 
+  Controller, Get, Post, Body, Param, 
+  UseGuards, Query, Put, Delete, Patch 
+} from '@nestjs/common';
+import { 
+  ApiTags, ApiOperation, ApiBearerAuth,
+  ApiResponse, ApiSecurity 
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiKeyGuard } from '../auth/guards/api-key.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { RequirePermissions } from '../auth/decorators/permissions.decorator';
 import { UserRole } from '../auth/enums/role.enum';
-import { Permission } from '../auth/constants/permissions';
-import { AdminRoute } from '../auth/decorators/admin-route.decorator';
+import { ValidationPipe } from '../common/pipes/validation.pipe';
+import { CreateBrandDto } from './dto/create-brand.dto';
+import { UpdateBrandDto } from './dto/update-brand.dto';
+import { BrandsService } from './brands.service';
 
 @ApiTags('brands')
 @Controller('brands')
+@ApiBearerAuth()
+@ApiSecurity('x-api-key')
 export class BrandsController {
   constructor(private readonly brandsService: BrandsService) {}
 
   @Post()
-  @AdminRoute(
-    [UserRole.SUPER_ADMIN, UserRole.PRODUCT_ADMIN],
-    [Permission.CREATE_BRAND]
-  )
+  @UseGuards(JwtAuthGuard, ApiKeyGuard)
+  @Roles([UserRole.CONTENT_ADMIN])
   @ApiOperation({ summary: 'Tạo thương hiệu mới' })
-  @ApiBody({
-    type: CreateBrandDto,
-    description: 'Thông tin thương hiệu mới',
-    examples: {
-      example1: {
-        summary: 'Thương hiệu mỹ phẩm',
-        value: {
-          name: 'The Ordinary',
-          description: 'Thương hiệu mỹ phẩm với công thức đơn giản và hiệu quả',
-          image: 'the-ordinary.jpg'
-        }
-      }
-    }
-  })
   @ApiResponse({ status: 201, description: 'Thương hiệu đã được tạo thành công.' })
-  create(@Body() createBrandDto: CreateBrandDto) {
+  create(@Body(new ValidationPipe()) createBrandDto: CreateBrandDto) {
     return this.brandsService.create(createBrandDto);
   }
 
   @Get()
   @ApiOperation({ summary: 'Lấy danh sách thương hiệu' })
-  findAll(@Query() query: any) {
-    return this.brandsService.findAll(query);
+  findAll(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10
+  ) {
+    return this.brandsService.findAll(page, limit);
   }
 
   @Get(':id')
@@ -53,23 +46,25 @@ export class BrandsController {
     return this.brandsService.findOne(id);
   }
 
-  @Put(':id')
-  @AdminRoute(
-    [UserRole.SUPER_ADMIN, UserRole.PRODUCT_ADMIN],
-    [Permission.UPDATE_BRAND]
-  )
+  @Get('search')
+  @ApiOperation({ summary: 'Tìm kiếm thương hiệu' })
+  search(@Query('keyword') keyword: string) {
+    return this.brandsService.search(keyword);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard, ApiKeyGuard)
+  @Roles([UserRole.CONTENT_ADMIN])
   @ApiOperation({ summary: 'Cập nhật thông tin thương hiệu' })
   update(@Param('id') id: string, @Body() updateBrandDto: UpdateBrandDto) {
     return this.brandsService.update(id, updateBrandDto);
   }
 
   @Delete(':id')
-  @AdminRoute(
-    [UserRole.SUPER_ADMIN, UserRole.PRODUCT_ADMIN],
-    [Permission.DELETE_BRAND]
-  )
+  @UseGuards(JwtAuthGuard, ApiKeyGuard)
+  @Roles([UserRole.CONTENT_ADMIN])
   @ApiOperation({ summary: 'Xóa thương hiệu' })
   remove(@Param('id') id: string) {
     return this.brandsService.remove(id);
   }
-}
+} 

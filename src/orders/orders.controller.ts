@@ -1,187 +1,97 @@
-import { Controller, Get, Post, Body, Param, Put, Query, UseGuards, ForbiddenException } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiParam, ApiSecurity, ApiBody } from '@nestjs/swagger';
+import { 
+  Controller, 
+  Get, 
+  Post, 
+  Body, 
+  Param, 
+  Patch,
+  UseGuards,
+  Logger
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse, ApiSecurity } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { UpdateOrderDto } from './dto/update-order.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { ApiKeyGuard } from '../auth/guards/api-key.guard';
-import { RequirePermissions } from '../auth/decorators/permissions.decorator';
-import { Permission } from '../auth/constants/permissions';
+import { GetUser } from '../auth/decorators/get-user.decorator';
+import { UserDocument } from '../users/schemas/user.schema';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '../users/schemas/user.schema';
-import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
-import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
-import { OrderStatus, PaymentStatus } from './enums/order.enum';
-import { UpdatePaymentStatusDto } from './dto/update-payment-status.dto';
-import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
-import { AdminRoute } from '../auth/decorators/admin-route.decorator';
+import { UserRole } from '../auth/enums/role.enum';
+import { OrderStatus } from './enums/order-status.enum';
 
 @ApiTags('orders')
 @Controller('orders')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
+@ApiSecurity('x-api-key')
 export class OrdersController {
+  private readonly logger = new Logger(OrdersController.name);
+
   constructor(private readonly ordersService: OrdersService) {}
 
   @Post()
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Tạo đơn hàng mới' })
-  @ApiResponse({ status: 201, description: 'Đơn hàng đã được tạo thành công.' })
-  create(
-    @GetCurrentUser() currentUser: JwtPayload,
+  @ApiResponse({ status: 201, description: 'Đơn hàng đã được tạo thành công' })
+  async create(
+    @GetUser() user: UserDocument,
     @Body() createOrderDto: CreateOrderDto
   ) {
-    return this.ordersService.create(createOrderDto, currentUser.sub);
+    try {
+      return await this.ordersService.create(user._id.toString(), createOrderDto);
+    } catch (error) {
+      this.logger.error(`Lỗi khi tạo đơn hàng: ${error.message}`, error.stack);
+      throw error;
+    }
   }
 
   @Get()
-  @ApiBearerAuth()
-  @ApiSecurity('x-api-key')
-  @UseGuards(JwtAuthGuard, ApiKeyGuard)
-  @Roles(UserRole.SUPER_ADMIN, UserRole.PRODUCT_ADMIN)
-  @RequirePermissions(Permission.READ_ORDER)
-  @ApiOperation({ summary: 'Lấy danh sách đơn hàng (Admin)' })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
-  @ApiQuery({ name: 'orderStatus', required: false, enum: OrderStatus })
-  @ApiQuery({ name: 'paymentStatus', required: false, enum: PaymentStatus })
-  @ApiQuery({ name: 'userId', required: false, type: String })
-  @ApiResponse({ status: 200, description: 'Danh sách đơn hàng.' })
-  async findAll(@Query() query) {
-    return this.ordersService.findAll(query);
-  }
-
-  @Get('my-orders')
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Lấy danh sách đơn hàng của người dùng hiện tại' })
-  @ApiResponse({ status: 200, description: 'Danh sách đơn hàng.' })
-  findMyOrders(@GetCurrentUser() currentUser: JwtPayload) {
-    return this.ordersService.findByUser(currentUser.sub);
+  @ApiOperation({ summary: 'Lấy danh sách đơn hàng của user' })
+  async findByUser(@GetUser() user: UserDocument) {
+    return this.ordersService.findByUserId(user._id.toString());
   }
 
   @Get(':id')
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Lấy thông tin đơn hàng theo ID' })
-  @ApiParam({ name: 'id', description: 'ID của đơn hàng' })
-  @ApiResponse({ status: 200, description: 'Thông tin đơn hàng.' })
-  @ApiResponse({ status: 404, description: 'Đơn hàng không tồn tại.' })
-  async findOne(
-    @Param('id') id: string,
-    @GetCurrentUser() currentUser: JwtPayload
-  ) {
-    const order = await this.ordersService.findOne(id);
-    
-    if (currentUser.role === UserRole.USER && order.userId.toString() !== currentUser.sub) {
-      throw new ForbiddenException('Bạn không có quyền xem đơn hàng này');
-    }
-    
-    return order;
+  @ApiOperation({ summary: 'Lấy chi tiết đơn hàng' })
+  async findOne(@Param('id') id: string) {
+    return this.ordersService.findOne(id);
   }
 
-  @Put(':id')
-  @ApiBearerAuth()
-  @ApiSecurity('x-api-key')
-  @UseGuards(JwtAuthGuard, ApiKeyGuard)
-  @Roles(UserRole.SUPER_ADMIN, UserRole.PRODUCT_ADMIN)
-  @RequirePermissions(Permission.UPDATE_ORDER)
-  @ApiOperation({ summary: 'Cập nhật thông tin đơn hàng' })
-  @ApiParam({ name: 'id', description: 'ID của đơn hàng' })
-  @ApiResponse({ status: 200, description: 'Đơn hàng đã được cập nhật.' })
-  @ApiResponse({ status: 404, description: 'Đơn hàng không tồn tại.' })
-  update(@Param('id') id: string, @Body() updateOrderDto: UpdateOrderDto) {
-    return this.ordersService.update(id, updateOrderDto);
+  @Patch(':id/status')
+  @Roles([UserRole.SUPER_ADMIN])
+  @ApiOperation({ summary: 'Cập nhật trạng thái đơn hàng' })
+  async updateStatus(
+    @Param('id') id: string,
+    @Body('status') status: OrderStatus
+  ) {
+    return this.ordersService.updateStatus(id, status);
   }
 
-  @Put(':id/status')
-  @AdminRoute(
-    [UserRole.SUPER_ADMIN, UserRole.PRODUCT_ADMIN],
-    [Permission.UPDATE_ORDER],
-    'Cập nhật trạng thái đơn hàng'
-  )
-  @ApiParam({ name: 'id', description: 'ID của đơn hàng' })
-  @ApiResponse({ status: 200, description: 'Trạng thái đơn hàng đã được cập nhật.' })
-  @ApiResponse({ status: 404, description: 'Đơn hàng không tồn tại.' })
-  updateStatus(
-    @Param('id') id: string,
-    @Body() updateStatusDto: UpdateOrderStatusDto
-  ) {
-    return this.ordersService.updateStatus(id, updateStatusDto);
+  @Get('status/:status')
+  @Roles([UserRole.SUPER_ADMIN])
+  @ApiOperation({ summary: 'Lấy danh sách đơn hàng theo trạng thái' })
+  async findByStatus(@Param('status') status: string) {
+    return this.ordersService.findByStatus(status);
   }
 
-  @Put(':id/payment-status')
-  @AdminRoute(
-    [UserRole.SUPER_ADMIN, UserRole.PRODUCT_ADMIN],
-    [Permission.UPDATE_ORDER],
-    'Cập nhật trạng thái thanh toán'
-  )
-  @ApiParam({ name: 'id', description: 'ID của đơn hàng' })
-  @ApiResponse({ status: 200, description: 'Trạng thái thanh toán đã được cập nhật.' })
-  @ApiResponse({ status: 404, description: 'Đơn hàng không tồn tại.' })
-  updatePaymentStatus(
-    @Param('id') id: string,
-    @Body() updatePaymentStatusDto: UpdatePaymentStatusDto
-  ) {
-    return this.ordersService.updatePaymentStatus(id, updatePaymentStatusDto);
-  }
-
-  @Put(':id/tracking')
-  @AdminRoute(
-    [UserRole.SUPER_ADMIN, UserRole.PRODUCT_ADMIN],
-    [Permission.UPDATE_ORDER],
-    'Cập nhật mã vận đơn'
-  )
-  @ApiParam({ name: 'id', description: 'ID của đơn hàng' })
-  @ApiResponse({ status: 200, description: 'Mã vận đơn đã được cập nhật.' })
-  @ApiResponse({ status: 404, description: 'Đơn hàng không tồn tại.' })
-  updateTracking(
-    @Param('id') id: string,
-    @Body('trackingNumber') trackingNumber: string
-  ) {
-    return this.ordersService.updateTracking(id, trackingNumber);
+  @Get('branch/:branchId')
+  @Roles([UserRole.SUPER_ADMIN])
+  @ApiOperation({ summary: 'Lấy danh sách đơn hàng theo chi nhánh' })
+  async findByBranch(@Param('branchId') branchId: string) {
+    return this.ordersService.findByBranch(branchId);
   }
 
   @Post(':id/cancel')
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Hủy đơn hàng' })
-  @ApiParam({ name: 'id', description: 'ID của đơn hàng' })
-  @ApiResponse({ status: 200, description: 'Đơn hàng đã được hủy.' })
-  @ApiResponse({ status: 400, description: 'Không thể hủy đơn hàng ở trạng thái hiện tại.' })
-  @ApiResponse({ status: 404, description: 'Đơn hàng không tồn tại.' })
   async cancelOrder(
     @Param('id') id: string,
-    @Body('cancelReason') cancelReason: string,
-    @GetCurrentUser() currentUser: JwtPayload
+    @GetUser() user: UserDocument
   ) {
-    const order = await this.ordersService.findOne(id);
-    
-    if (order.userId.toString() !== currentUser.sub) {
-      throw new ForbiddenException('Bạn không có quyền hủy đơn hàng này');
-    }
-    
-    return this.ordersService.cancelOrder(id, cancelReason);
+    return this.ordersService.cancelOrder(id);
   }
 
-  @Post(':id/return')
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Yêu cầu trả hàng' })
-  @ApiParam({ name: 'id', description: 'ID của đơn hàng' })
-  @ApiResponse({ status: 200, description: 'Yêu cầu trả hàng đã được ghi nhận.' })
-  @ApiResponse({ status: 400, description: 'Không thể trả hàng ở trạng thái hiện tại.' })
-  @ApiResponse({ status: 404, description: 'Đơn hàng không tồn tại.' })
-  async requestReturn(
-    @Param('id') id: string,
-    @Body() returnData: { reason: string, images?: string[] },
-    @GetCurrentUser() currentUser: JwtPayload
-  ) {
-    const order = await this.ordersService.findOne(id);
-    
-    if (order.userId.toString() !== currentUser.sub) {
-      throw new ForbiddenException('Bạn không có quyền yêu cầu trả hàng cho đơn hàng này');
-    }
-    
-    return this.ordersService.requestReturn(id, returnData);
+  @Post(':id/complete')
+  @Roles([UserRole.SUPER_ADMIN])
+  @ApiOperation({ summary: 'Hoàn thành đơn hàng' })
+  async completeOrder(@Param('id') id: string) {
+    return this.ordersService.completeOrder(id);
   }
 } 

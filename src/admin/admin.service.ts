@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { CreateAdminDto } from './dto/create-admin.dto';
-import { UserRole } from '../users/schemas/user.schema';
+import { UserRole } from '../auth/enums/role.enum';
 import { Permission, RolePermissions } from '../auth/constants/permissions';
 import * as bcrypt from 'bcrypt';
 
@@ -22,6 +22,7 @@ export class AdminService {
     const hashedPassword = await bcrypt.hash(createAdminDto.password, 10);
     return this.usersService.create({
       ...createAdminDto,
+      phone: '',
       password: hashedPassword,
       permissions: RolePermissions[createAdminDto.role]
     });
